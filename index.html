@@ -10,7 +10,12 @@
 <link href="https://cdn.jsdelivr.net/npm/@fontsource/podkova@5.0.14/700.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@fontsource/neucha@5.0.14/index.css" rel="stylesheet">
 <!--
-АЛХИМИЧЕСКИЙ ЗАМОК v8.2 — merge TD (VK-издание: Мини-игры ВКонтакте + VK Play + GitHub Pages)
+АЛХИМИЧЕСКИЙ ЗАМОК v8.3 — merge TD (VK-издание: Мини-игры ВКонтакте + VK Play + GitHub Pages)
+v8.3 «Честные награды»: rewarded-награда выдаётся ТОЛЬКО при result:true (ролик досмотрен
+до конца — контракт VKWebAppShowNativeAds). Досрочное закрытие (result:false) или ошибка
+показа = БЕЗ награды: снимается рекламная пауза, показывается плашка ad_skip_no_reward /
+ad_unavailable, countAdView() не растёт. interstitial при ошибке показа просто пропускается
+(фейковый mock-оверлей в реальном ВК больше не показывается).
 v8.2 «Однофайловая сборка»: vk-bridge 2.15.12 встроен в index.html — на хостинге
 достаточно index.html + privacy.html; потеря js/vk-bridge.min.js больше не может
 оставить игру на вечной загрузке ВК (нет VKWebAppInit). Ошибки загрузки выводятся
@@ -848,6 +853,7 @@ meteor_aim:'Тапни по полю — упадёт метеор', brewed:'С�
 only_combat:'Только в бою', no_pair:'Пара не найдена', no_gold:'Пусто в казне!', no_slots:'Места нет! Сливай башни.',
 unlock_wave:'Откроется с волны {n}', unlock_wave_short:'с {n} волны', nothing_merge:'Нечего сливать',
 ad_wait:'Реклама через {n} с', ad_reward:'+{n} ✦ за показ!', castle_revived:'Замок отстроен!',
+ad_skip_no_reward:'Ролик не досмотрен — награда не выдаётся', ad_unavailable:'Реклама недоступна — попробуй позже',
 no_bricks:'Мало кирпичей', upgrade_done:'Отстройка: {name} (в след. забеге)',
 journal_gold:'Журнал: {name} · +{n}✦', journal_brick:'Журнал: {name} · +{n} кирп.',
 daily_gold:'Задание дня: {name} · +{n}✦', daily_brick:'Задание дня: {name} · +{n} кирп.',
@@ -931,6 +937,7 @@ meteor_aim:'Tap the field to drop a meteor', brewed:'Brewed: {name}', need_gold:
 only_combat:'Only in combat', no_pair:'No pair found', no_gold:'Treasury is empty!', no_slots:'No room! Merge towers.',
 unlock_wave:'Unlocks at wave {n}', unlock_wave_short:'wave {n}+', nothing_merge:'Nothing to merge',
 ad_wait:'Ad in {n}s', ad_reward:'+{n} gold for the ad!', castle_revived:'Castle rebuilt!',
+ad_skip_no_reward:'Video skipped — no reward', ad_unavailable:'Ads unavailable — try later',
 no_bricks:'Not enough bricks', upgrade_done:'Rebuild: {name} (next run)',
 journal_gold:'Log: {name} +{n} gold', journal_brick:'Log: {name} +{n} bricks',
 daily_gold:'Daily: {name} +{n} gold', daily_brick:'Daily: {name} +{n} bricks',
@@ -1141,19 +1148,24 @@ clearTimeout(this._saveT);
 this._saveT=setTimeout(()=>{try{this.bridge.send('VKWebAppStorageSet',{key:key,value:value}).catch(()=>{});}catch(e){}},1200);
 },
 /* --- реклама: ВК — VKWebAppShowNativeAds, вне ВК — мок-имитация.
-     done() вызывается ровно один раз; награда не теряется даже при отказе
-     платформы показать ролик (умышленный фолбэк для целостности UX). --- */
+     v8.3: done() (награда) — ТОЛЬКО когда ролик досмотрен (VK вернул result:true,
+     см. документацию VKWebAppShowNativeAds); result:false (закрыл раньше) или
+     ошибка показа -> cleanup() без награды + плашка. fin() зовётся ровно один раз. --- */
 rewarded(cb){
 const fin=onceFn(cb);
 const wasPaused=paused; paused=true; adPaused=true;
-const done=()=>{ try{ freeze=Math.max(freeze,0.05); }catch(e){} if(adPaused){ adPaused=false; paused=!!wasPaused; } try{ countAdView(); }catch(e){} fin(); };
+/* v8.3: cleanup() снимает рекламную паузу БЕЗ награды; done() = cleanup + награда. */
+const cleanup=()=>{ if(adPaused){ adPaused=false; paused=!!wasPaused; } };
+const done=()=>{ try{ freeze=Math.max(freeze,0.05); }catch(e){} cleanup(); try{ countAdView(); }catch(e){} fin(); };
+const noReward=(key,why)=>{ cleanup(); try{ banner(t(key),'#ff8a7a'); }catch(e){} try{console.warn('[AlchemyCastle] rewarded: БЕЗ награды ('+why+')');}catch(e){} };
 if(this.vk){
 let p=null;
 try{ p=this.bridge.send('VKWebAppShowNativeAds',{ad_format:'rewarded'}); }catch(e){ p=null; }
 if(p&&typeof p.then==='function'){
-p.then(r=>{done();if(!r)console.warn('[AlchemyCastle] rewarded: платформа не показала ролик — награда выдана по фолбэку');})
-.catch(()=>{console.warn('[AlchemyCastle] rewarded недоступна -> мок-показ');mockAd(1500,done);});
-}else{mockAd(1500,done);}
+p.then(r=>{ const earned=(r===true)||(!!r&&(r.result===true||r.result==='true'));
+if(earned){done();}else{noReward('ad_skip_no_reward',r?('ответ='+String(JSON.stringify(r)).slice(0,80)):'пустой ответ');} })
+.catch(()=>{noReward('ad_unavailable','ошибка показа');});
+}else{noReward('ad_unavailable','мост без промиса');}
 }else{mockAd(1500,done);}
 },
 interstitial(cb){
@@ -1164,7 +1176,7 @@ if(this.vk){
 let p=null;
 try{ p=this.bridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'}); }catch(e){ p=null; }
 if(p&&typeof p.then==='function'){
-p.then(()=>done()).catch(()=>{console.warn('[AlchemyCastle] interstitial недоступна -> мок-показ');mockAd(900,done);});
+p.then(()=>done()).catch(()=>done()); /* v8.3: ошибка показа — просто снимаем паузу */
 }else{mockAd(900,done);}
 }else{
 const el=document.getElementById('adOverlay');el.classList.add('show');
