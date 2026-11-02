@@ -10,7 +10,11 @@
 <link href="https://cdn.jsdelivr.net/npm/@fontsource/podkova@5.0.14/700.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@fontsource/neucha@5.0.14/index.css" rel="stylesheet">
 <!--
-АЛХИМИЧЕСКИЙ ЗАМОК v8.1 — merge TD (VK-издание: Мини-игры ВКонтакте + VK Play + GitHub Pages)
+АЛХИМИЧЕСКИЙ ЗАМОК v8.2 — merge TD (VK-издание: Мини-игры ВКонтакте + VK Play + GitHub Pages)
+v8.2 «Однофайловая сборка»: vk-bridge 2.15.12 встроен в index.html — на хостинге
+достаточно index.html + privacy.html; потеря js/vk-bridge.min.js больше не может
+оставить игру на вечной загрузке ВК (нет VKWebAppInit). Ошибки загрузки выводятся
+на экран (диагностика bootErr) — видны на скриншоте у игрока.
 v8.1 «Соответствие Правилам VK Mini Apps (ред. 17.03.2026)»:
 1) п. 1.1.4 — модал принятия политики конфиденциальности при первом запуске +
    ссылка «Политика конфиденциальности» (privacy.html) в главном меню.
@@ -36,7 +40,7 @@ v8.0 «Монетизационное издание» (цель: доход н�
 4) PLATFORM: invite()/share()/addFavorite() с тихим фолбэком вне ВК; countAdView() —
    учёт rewarded-показов (квест дня + аналитика).
 v7.0: Yandex SDK заменён универсальным платформенным слоем PLATFORM (секция 4):
-1) Мини-игры ВКонтакте (iframe с vk_app_id): vk-bridge (локальный js/vk-bridge.min.js) —
+1) Мини-игры ВКонтакте (iframe с vk_app_id): vk-bridge (встроен в файл с v8.2) —
    VKWebAppInit; реклама VKWebAppShowNativeAds (rewarded/interstitial, только по клику,
    как в v6.8); таблица лидеров VKWebAppShowLeaderBoardBox (кнопки «ТАБЛИЦА РЕКОРДОВ»);
    гибридные сохранения: localStorage + VKWebAppStorageSet/Get (побеждает свежий ts).
@@ -684,10 +688,30 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 <div id="adOverlay"><div class="spin"></div><span id="adText" data-i18n="ad_mock">Реклама (mock)...</span></div>
 <!-- v8.1 (п. 3.5.2): индикатор загрузки; скрывается в bootGame() -->
 <div id="bootSpin"><div class="spin"></div></div>
-<!-- v7.0: SDK Яндекса убран. Вместо него — универсальный платформенный слой
-(см. секцию 4 скрипта) и ЛОКАЛЬНЫЙ vk-bridge для Мини-игр ВКонтакте.
-Файлы должны лежать рядом: index.html + js/vk-bridge.min.js. -->
-<script src="js/vk-bridge.min.js"></script>
+<!-- v8.2: однофайловая сборка — vk-bridge 2.15.12 ВСТРОЕН ниже, отдельный
+js/vk-bridge.min.js больше не нужен и не может потеряться на хостинге (причина
+«вечной загрузки» в ВК: нет файла -> нет VKWebAppInit -> ВК держит спиннер).
+Перед ним — диагностика: любая JS-ошибка до конца загрузки выводится на экран. -->
+<script>
+'use strict';
+window.__acBoot={done:false};
+window.addEventListener('error',function(e){
+if(window.__acBoot.done)return;
+try{
+var m=(e&&e.message)?(e.message+' (строка '+(e.lineno||'?')+')'):String(e&&e.error||e);
+var d=document.getElementById('bootErr');
+if(!d){d=document.createElement('div');d.id='bootErr';
+d.setAttribute('style','position:fixed;left:10px;right:10px;bottom:10px;z-index:2147483000;font:11px/1.45 Menlo,Consolas,monospace;color:#ffe2d2;background:rgba(46,12,2,.92);padding:7px 9px;border-radius:7px;pointer-events:none;white-space:pre-wrap;');
+(document.body||document.documentElement).appendChild(d);}
+d.textContent='Ошибка загрузки: '+m;
+}catch(x){}
+},true);
+setTimeout(function(){window.__acBoot.done=true;},15000);
+</script>
+<script>/* vk-bridge 2.15.12 (встроен; оригинал: @vkontakte/vk-bridge, dist/browser.min.js) */
+!function(){"use strict";var e=function(){return e=Object.assign||function(e){for(var t,n=1,o=arguments.length;n<o;n++)for(var r in t=arguments[n])Object.prototype.hasOwnProperty.call(t,r)&&(e[r]=t[r]);return e},e.apply(this,arguments)};function t(e,t,n,o){return new(n||(n=Promise))((function(r,p){function i(e){try{s(o.next(e))}catch(e){p(e)}}function a(e){try{s(o.throw(e))}catch(e){p(e)}}function s(e){var t;e.done?r(e.value):(t=e.value,t instanceof n?t:new n((function(e){e(t)}))).then(i,a)}s((o=o.apply(e,t||[])).next())}))}function n(e,t){var n,o,r,p,i={label:0,sent:function(){if(1&r[0])throw r[1];return r[1]},trys:[],ops:[]};return p={next:a(0),throw:a(1),return:a(2)},"function"==typeof Symbol&&(p[Symbol.iterator]=function(){return this}),p;function a(a){return function(s){return function(a){if(n)throw new TypeError("Generator is already executing.");for(;p&&(p=0,a[0]&&(i=0)),i;)try{if(n=1,o&&(r=2&a[0]?o.return:a[0]?o.throw||((r=o.return)&&r.call(o),0):o.next)&&!(r=r.call(o,a[1])).done)return r;switch(o=0,r&&(a=[2&a[0],r.value]),a[0]){case 0:case 1:r=a;break;case 4:return i.label++,{value:a[1],done:!1};case 5:i.label++,o=a[1],a=[0];continue;case 7:a=i.ops.pop(),i.trys.pop();continue;default:if(!(r=i.trys,(r=r.length>0&&r[r.length-1])||6!==a[0]&&2!==a[0])){i=0;continue}if(3===a[0]&&(!r||a[1]>r[0]&&a[1]<r[3])){i.label=a[1];break}if(6===a[0]&&i.label<r[1]){i.label=r[1],r=a;break}if(r&&i.label<r[2]){i.label=r[2],i.ops.push(a);break}r[2]&&i.ops.pop(),i.trys.pop();continue}a=t.call(e,i)}catch(e){a=[6,e],o=0}finally{n=r=0}if(5&a[0])throw a[1];return{value:a[0]?a[1]:void 0,done:!0}}([a,s])}}}function o(e,t,n){if(n||2===arguments.length)for(var o,r=0,p=t.length;r<p;r++)!o&&r in t||(o||(o=Array.prototype.slice.call(t,0,r)),o[r]=t[r]);return e.concat(o||Array.prototype.slice.call(t))}function r(t,n,o){var r=function(e){var t={current:0,next:function(){return++this.current}},n={};return{add:function(o,r){var p=null!=r?r:"".concat(t.next(),"_").concat(e);return n[p]=o,p},resolve:function(e,t,o){var r=n[e];r&&(o(t)?r.resolve(t):r.reject(t),n[e]=null)}}}(o);return n((function(e){if(e.detail&&e.detail.data&&"object"==typeof e.detail.data&&"request_id"in e.detail.data){var t=e.detail.data,n=t.request_id,o=function(e,t){var n={};for(var o in e)Object.prototype.hasOwnProperty.call(e,o)&&t.indexOf(o)<0&&(n[o]=e[o]);if(null!=e&&"function"==typeof Object.getOwnPropertySymbols){var r=0;for(o=Object.getOwnPropertySymbols(e);r<o.length;r++)t.indexOf(o[r])<0&&Object.prototype.propertyIsEnumerable.call(e,o[r])&&(n[o[r]]=e[o[r]])}return n}(t,["request_id"]);n&&r.resolve(n,o,(function(e){return!("error_type"in e)}))}})),function(n,o){return void 0===o&&(o={}),new Promise((function(p,i){var a=r.add({resolve:p,reject:i},o.request_id);t(n,e(e({},o),{request_id:a}))}))}}var p,i="undefined"!=typeof window,a=Boolean(i&&window.AndroidBridge),s=Boolean(i&&window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.VKWebAppClose),u=Boolean(i&&window.ReactNativeWebView&&"function"==typeof window.ReactNativeWebView.postMessage),c=i&&!a&&!s,l=c&&/(^\?|&)vk_platform=mobile_web(&|$)/.test(location.search),d=c?"message":"VKWebAppEvent",b=o(["VKWebAppInit","VKWebAppGetCommunityAuthToken","VKWebAppAddToCommunity","VKWebAppAddToHomeScreenInfo","VKWebAppClose","VKWebAppCopyText","VKWebAppCreateHash","VKWebAppGetUserInfo","VKWebAppSetLocation","VKWebAppSendToClient","VKWebAppGetClientVersion","VKWebAppGetPhoneNumber","VKWebAppGetEmail","VKWebAppGetGroupInfo","VKWebAppGetGeodata","VKWebAppGetCommunityToken","VKWebAppGetConfig","VKWebAppGetLaunchParams","VKWebAppSetTitle","VKWebAppGetAuthToken","VKWebAppCallAPIMethod","VKWebAppJoinGroup","VKWebAppLeaveGroup","VKWebAppAllowMessagesFromGroup","VKWebAppDenyNotifications","VKWebAppAllowNotifications","VKWebAppOpenPayForm","VKWebAppOpenApp","VKWebAppShare","VKWebAppShowWallPostBox","VKWebAppScroll","VKWebAppShowOrderBox","VKWebAppShowLeaderBoardBox","VKWebAppShowInviteBox","VKWebAppShowRequestBox","VKWebAppAddToFavorites","VKWebAppShowStoryBox","VKWebAppStorageGet","VKWebAppStorageGetKeys","VKWebAppStorageSet","VKWebAppFlashGetInfo","VKWebAppSubscribeStoryApp","VKWebAppOpenWallPost","VKWebAppCheckAllowedScopes","VKWebAppCheckBannerAd","VKWebAppHideBannerAd","VKWebAppShowBannerAd","VKWebAppCheckNativeAds","VKWebAppShowNativeAds","VKWebAppRetargetingPixel","VKWebAppConversionHit","VKWebAppShowSubscriptionBox","VKWebAppCheckSurvey","VKWebAppShowSurvey","VKWebAppScrollTop","VKWebAppScrollTopStart","VKWebAppScrollTopStop","VKWebAppShowSlidesSheet","VKWebAppTranslate","VKWebAppRecommend","VKWebAppAddToProfile","VKWebAppGetFriends"],c&&!l?["VKWebAppResizeWindow","VKWebAppAddToMenu","VKWebAppShowInstallPushBox","VKWebAppShowCommunityWidgetPreviewBox","VKWebAppCallStart","VKWebAppCallJoin","VKWebAppCallGetStatus"]:["VKWebAppShowImages"],!0),f=i?window.AndroidBridge:void 0,A=s?window.webkit.messageHandlers:void 0,w=c?parent:void 0;var W,V,K,S,h,v,y,m,E,g;!function(e){e.REWARD="reward",e.INTERSTITIAL="interstitial"}(W||(W={})),function(e){e.RESIZE="resize",e.OVERLAY="overlay"}(V||(V={})),function(e){e.TOP="top",e.BOTTOM="bottom"}(K||(K={})),function(e){e.LEFT="left",e.RIGHT="right",e.CENTER="center"}(S||(S={})),function(e){e.COMPACT="compact",e.REGULAR="regular"}(h||(h={})),function(e){e.HORIZONTAL="horizontal",e.VERTICAL="vertical"}(v||(v={})),function(e){e.CAMERA="camera",e.LOCATION="location",e.PHOTO="photo"}(y||(y={})),function(e){e.RU="ru",e.UK="uk",e.UA="ua",e.EN="en",e.BE="be",e.KZ="kz",e.PT="pt",e.ES="es"}(m||(m={})),function(e){e.ADMIN="admin",e.EDITOR="editor",e.MEMBER="member",e.MODER="moder",e.NONE="none"}(E||(E={})),function(e){e.DESKTOP_WEB="desktop_web",e.DESKTOP_WEB_MESSENGER="desktop_web_messenger",e.DESKTOP_APP_MESSENGER="desktop_app_messenger",e.MOBILE_WEB="mobile_web",e.MOBILE_ANDROID="mobile_android",e.MOBILE_ANDROID_MESSENGER="mobile_android_messenger",e.MOBILE_IPHONE="mobile_iphone",e.MOBILE_IPHONE_MESSENGER="mobile_iphone_messenger",e.MOBILE_IPAD="mobile_ipad"}(g||(g={}));var O=function(e){var i=void 0,l=[],W=Math.random().toString(36).substring(2,5);function V(e){l.push(e)}function K(e){return a?!(!f||"function"!=typeof f[e]):s?!(!A||!A[e]||"function"!=typeof A[e].postMessage):!!c&&b.includes(e)}function S(){return s||a}function h(){return c&&window.parent!==window}function v(){return S()||h()}function y(e){if(s||a)return o([],l,!0).map((function(t){return t.call(null,e)}));var t=null==e?void 0:e.data;if(c&&t){if(u&&"string"==typeof t)try{t=JSON.parse(t)}catch(e){}var n=t.type,r=t.data,p=t.frameId;n&&("VKWebAppSettings"!==n?o([],l,!0).map((function(e){return e({detail:{type:n,data:r}})})):i=p)}}u&&/(android)/i.test(navigator.userAgent)?document.addEventListener(d,y):"undefined"!=typeof window&&"addEventListener"in window&&window.addEventListener(d,y);var m=r((function(t,n){f&&f[t]?f[t](JSON.stringify(n)):A&&A[t]&&"function"==typeof A[t].postMessage?A[t].postMessage(n):u?window.ReactNativeWebView.postMessage(JSON.stringify({handler:t,params:n})):w&&"function"==typeof w.postMessage&&w.postMessage({handler:t,params:n,type:"vk-connect",webFrameId:i,connectVersion:e},"*")}),V,W);return V((function(e){if(e.detail&&"SetSupportedHandlers"===e.detail.type)p=new Set(e.detail.data.supportedHandlers)})),{send:m,sendPromise:m,subscribe:V,unsubscribe:function(e){var t=l.indexOf(e);t>-1&&l.splice(t,1)},supports:function(e){return console.warn("bridge.supports method is deprecated. Use bridge.supportsAsync instead."),K(e)},supportsAsync:function(e){return t(this,void 0,void 0,(function(){var t;return n(this,(function(n){switch(n.label){case 0:if(a||s)return[2,K(e)];if(p)return[2,p.has(e)];n.label=1;case 1:return n.trys.push([1,3,,4]),[4,m("SetSupportedHandlers")];case 2:return t=n.sent(),p=new Set(t.supportedHandlers),[3,4];case 3:return n.sent(),p=new Set(["VKWebAppInit"]),[3,4];case 4:return[2,p.has(e)]}}))}))},isWebView:S,isIframe:h,isEmbedded:v,isStandalone:function(){return!v()}}}("2.15.12");window.vkBridge=window.vkConnect=O}();
+//# sourceMappingURL=browser.min.js.map
+</script>
 <script>
 'use strict';
 /* ============ 0. КОНФИГ ============ */
@@ -1348,7 +1372,7 @@ function waveCleared(){const bonus=30+wave*8; /* v8.0: щедрее */addGold(bo
 function mergeResult(a,b){if(!a||!b||a.level!==b.level||a.level>=MAX_LVL)return null;if(a.type===b.type)return{kind:'levelup'};if(TYPES[a.type].hybrid||TYPES[b.type].hybrid)return null;const key=[a.type,b.type].sort().join('+');const h=RECIPES[key];return h?{kind:'hybrid',type:h}:null;}
 const canMerge=(a,b)=>!!mergeResult(a,b);
 const canSacrifice=(a,b)=>a&&b&&a.type===b.type&&b.level>a.level;
-function rollMut(t){if(t.mut)return;if(Math.random()<0.2){t.mut=['greedy','precise','swift','fierce'][Math.floor(Math.random()*4)];addFloat(t.x,t.y-50,t('mut_word'),'#b58ae8',12);}}
+function rollMut(tw){if(tw.mut)return;if(Math.random()<0.2){tw.mut=['greedy','precise','swift','fierce'][Math.floor(Math.random()*4)];addFloat(tw.x,tw.y-50,t('mut_word'),'#b58ae8',12);}}
 function doMerge(src,dst,manual){const a=src.tower,b=dst.tower,mr=mergeResult(a,b);if(!mr)return;if(mr.kind==='levelup'){src.tower=null;b.level++;b.value+=a.value;b.cd=0;rollMut(b);explosion(dst.x,dst.y,TYPES[b.type].color,20,16+b.level*2);addFloat(dst.x,dst.y-36,tf('lvl_up',{n:b.level}),'#f2c14e',17);meta.qc.maxLvl=Math.max(meta.qc.maxLvl,b.level);}else{const nt={type:mr.type,level:a.level,value:a.value+b.value,x:dst.x,y:dst.y,cd:0,recoil:0,seed:Math.random()*7,boost:0,mut:null};rollMut(nt);src.tower=null;dst.tower=nt;explosion(dst.x,dst.y,TYPES[mr.type].color,26,22);addFloat(dst.x,dst.y-36,L(TYPES[mr.type].name)+'!','#8fd8e8',14);meta.qc.hybrid++;td('hybrid');meta.qc.maxLvl=Math.max(meta.qc.maxLvl,nt.level);if(!meta.recipes[mr.type]){meta.recipes[mr.type]=1;banner(tf('new_recipe',{name:L(TYPES[mr.type].name)}),'#f2c14e');addGold(75,dst.x,dst.y-56);SFX.play('discover');}}freeze=0.06;shake=Math.max(shake,5);SFX.play('merge');rings.push({x:dst.x,y:dst.y,r:8,vr:380,life:0.4,max:0.4,color:'#f2c14e',w:4});meta.qc.merge++;td('merge');if(manual){if(comboTimer>0)comboCount++;else comboCount=1;comboTimer=2.5;const mult=Math.min(3,1+0.5*(comboCount-1));const cg=Math.round(8*mult*(meta.up.comboX?2:1)); /* v8.0: Кабала */addGold(cg,dst.x,dst.y-58);addFloat(dst.x,dst.y-78,tf('combo_x',{n:comboCount}),'#ff8a7a',14);SFX._combo=comboCount;SFX.play('combo');}const ml=t('merge_lines');if(Math.random()<0.25)addFloat(dst.x,dst.y-58,ml[Math.floor(Math.random()*ml.length)],'#e7d3a1',12);checkQuests();}
 function doSacrifice(src,dst){const b=dst.tower;b.boost=Math.min(1.5,(b.boost||0)+0.15);src.tower=null;explosion(dst.x,dst.y,'#b58ae8',12,12);addFloat(dst.x,dst.y-36,t('power_up'),'#b58ae8',13);SFX.play('sacrifice');shake=Math.max(shake,3);freeze=Math.max(freeze,0.03);}
 function mergeAll(){let merged=0;for(let pass=0;pass<12;pass++){let did=false;for(const s of slots){if(!s.tower)continue;for(const o of slots){if(o===s||!o.tower)continue;if(canMerge(s.tower,o.tower)){doMerge(s,o,false);did=true;merged++;break;}}if(did)break;}if(!did)break;}if(!merged)deny(t('nothing_merge'));}
@@ -1723,6 +1747,7 @@ Promise.race([PLATFORM.init(),timeout.then(()=>PLATFORM)])
 .then(()=>{
 setupViewHide();
 bootGame();
+try{window.__acBoot.done=true;var _be=document.getElementById('bootErr');if(_be)_be.remove();}catch(e){}
 /* v7.0: кнопки «ТАБЛИЦА РЕКОРДОВ» видны только там, где есть лидерборд (ВК). */
 if(PLATFORM.supportsLeaderboard){
 const b1=document.getElementById('btnRecords'),b2=document.getElementById('btnRecords2');
@@ -1739,7 +1764,7 @@ if(bf)bf.style.display='block';
 }
 try{console.info('[AlchemyCastle] platform ready:',PLATFORM.name,'| vk bridge:',PLATFORM.vk);}catch(e){}
 })
-.catch(()=>{try{bootGame();}catch(e){}});
+.catch(()=>{try{bootGame();}catch(e){}try{window.__acBoot.done=true;}catch(e){}});
 }
 initAndBoot();
 </script>
@@ -1760,12 +1785,12 @@ initAndBoot();
 АЛХИМИЧЕСКИЙ ЗАМОК v7.0 — VK-ИЗДАНИЕ (ВКонтакте + VK Play + GitHub Pages)
 ----------------------------------------------------------------
 v7.0: Yandex SDK удалён. Платформенный слой PLATFORM (секция 4 скрипта):
-- Мини-игры ВКонтакте: vk-bridge (локальный js/vk-bridge.min.js) — VKWebAppInit,
+- Мини-игры ВКонтакте: vk-bridge (встроен в файл с v8.2) — VKWebAppInit,
   VKWebAppShowNativeAds (rewarded/interstitial, только по клику пользователя),
   VKWebAppShowLeaderBoardBox (кнопки «ТАБЛИЦА РЕКОРДОВ» в меню и на геймовере),
   облачные сохранения VKWebAppStorage (гибрид с localStorage, свежий ts побеждает);
-- VK Play: веб-сборка = zip, в корне index.html + js/vk-bridge.min.js;
-- GitHub Pages: выложить каталог game/ целиком (index.html в корне репозитория).
+- VK Play: веб-сборка = zip, в корне index.html (vk-bridge встроен);
+- GitHub Pages: выложить index.html + privacy.html в корень репозитория.
 ----------------------------------------------------------------
 АЛХИМИЧЕСКИЙ ЗАМОК v6.8 — РЕЛИЗ (закрыты 3 замечания раунда модерации)
 ================================================================
