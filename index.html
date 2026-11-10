@@ -10,6 +10,65 @@
 <link href="https://cdn.jsdelivr.net/npm/@fontsource/podkova@5.0.14/700.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@fontsource/neucha@5.0.14/index.css" rel="stylesheet">
 <!--
+АЛХИМИЧЕСКИЙ ЗАМОК v9.0 «АДАПТИВНОЕ ИЗДАНИЕ» — merge TD
+(VK-издание: Мини-игры ВКонтакте + VK Play + GitHub Pages)
+===============================================================================
+ЧТО ИСПРАВЛЕНО ПО ЗАМЕЧАНИЯМ МОДЕРАЦИИ ВКОНТАКТЕ (раунд после v8.3)
+-------------------------------------------------------------------------------
+Замечание 1 (п. 3.2.1 / 3.3.3 Правил: адаптивность, масштаб и кегль):
+ 1) Введён единый масштаб интерфейса --u (подбирается по размеру окна) и
+    ручная настройка «Размер интерфейса» 90/100/112/125% в меню паузы.
+    Вся типографика и все элементы размечены через calc(Npx * var(--k)).
+ 2) Появилась НАСТОЯЩАЯ десктопная компоновка (>=760px по ширине, кроме
+    портретных окон): поле слева на ВСЮ высоту окна + панель HUD/лавки справа.
+    Раньше вторая колонка включалась только при max-height:560px, поэтому на
+    обычном мониторе игра оставалась «мобильной» колонкой, а поле занимало
+    лишь свободное место между HUD и лавкой (~62% высоты) — отсюда и «поле есть
+    куда увеличить». Теперь поле = 100vh, «воздух» убран.
+ 3) Кегль на десктопе: тело 21-22.5px, названия башен 18.9-20.3px, кнопки
+    46-63px высотой (было 13.5px и 42px на любом экране).
+ 4) На телефоне HUD перестроен: было 6 кнопок в строке, из-за чего они уезжали
+    за правый край и обрезались — теперь 2 строки, кнопки 42x42 CSS px.
+ 5) Эмодзи 🔍 на canvas заменён текстом «РАЗВЕДКА» (в некоторых WebView вместо
+    эмодзи рисовался пустой квадрат), кнопки на поле увеличены.
+ 6) Убраны все места, где текст обрезался (названия башен «Громовержец» и др.):
+    на десктопе список башен — в одну колонку с ценой справа.
+
+Замечание 2 (п. 2.3.8 Правил: синхронизация прогресса между платформами):
+ 1) Облако прогресса переведено на АКТУАЛЬНЫЙ API VKWebAppStorage:
+    VKWebAppStorageGet {keys:[...]}, VKWebAppStorageSet {key,value}.
+    Раньше использовался устаревший формат {key} -> {value}, а ответ облака
+    разбирался как r.value — то есть облако фактически не читалось.
+ 2) Добавлены ЧАНКИ: значение VKWebAppStorageSet молча обрезается на 4096
+    байтах, поэтому сейв режется на части по <=3400 байт (ac9_c0..ac9_cN) плюс
+    индекс ac9_meta с ts/числом частей/хешем; при несовпадении хеша запись
+    считается битой и перезаписывается.
+ 3) Запись: дебаунс 900 мс + НЕМЕДЛЕННЫЙ flush при VKWebAppViewHide,
+    visibilitychange, pagehide, beforeunload (раньше последние изменения не
+    успевали уехать в облако — прогресс рассинхронизировался).
+ 4) Чтение: при старте (до отрисовки UI), при VKWebAppShow / focus /
+    visibilitychange и раз в 60 с. Слияние — по свежести ts + объединение
+    монотонных полей (рекорд, счётчики, рецепты, задания), поэтому прогресс не
+    откатывается при переключении устройств.
+ 5) Видимый индикатор: кнопка-облако в HUD + строка статуса под лавкой +
+    панель «СИНХРОНИЗАЦИЯ ПРОГРЕССА» (что за хранилище, когда последний раз
+    синхронизировалось, кнопка «синхронизировать сейчас»).
+ 6) Для платформ без облака ВК (VK Play, обычный хостинг) — КОД ПЕРЕНОСА
+    прогресса (base64) + ручной импорт; плюс сброс прогресса вместе с облачной
+    копией (право на удаление данных, см. privacy.html).
+ 7) Прогресс игроков старой версии (ключ alchemy_castle_v3..v6) миграцией
+    подхватывается из облака автоматически.
+
+Замечание 3 (п. 2.3.6 / 2.3.9 Правил — заглушки и доступность функций):
+ перед показом рекламы вызывается VKWebAppCheckNativeAds; если реклама на
+ платформе недоступна, рекламные точки помечаются и не обещают награду.
+
+Остальное из v8.3 сохранено: rewarded-награда только при result:true,
+interstitial только по клику, звук и пауза на VKWebAppViewHide, согласие с
+политикой конфиденциальности, маркировка 12+, отсутствие запрещённых наград
+за соцдействия, «12+» и ссылка на политику.
+-->
+<!--
 АЛХИМИЧЕСКИЙ ЗАМОК v8.3 — merge TD (VK-издание: Мини-игры ВКонтакте + VK Play + GitHub Pages)
 v8.3 «Честные награды»: rewarded-награда выдаётся ТОЛЬКО при result:true (ролик досмотрен
 до конца — контракт VKWebAppShowNativeAds). Досрочное закрытие (result:false) или ошибка
@@ -79,24 +138,51 @@ v6.5 (сохранено): 9 замечаний модерации (язык д�
 *{
 margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;
 -webkit-user-drag:none;user-select:none;-webkit-user-select:none;-moz-user-select:none;
--webkit-touch-callout:none; /* v6.8: iOS long-press callout тоже запрещён */
-/* v6.7: нигде никаких полос прокрутки (Firefox/IE/Edge) */
+-webkit-touch-callout:none;
 scrollbar-width:none;-ms-overflow-style:none
 }
-/* v6.7: нигде никаких полос прокрутки (WebKit/Blink). Свайп-скролл контента
-свайпом остаётся рабочим — скрыта только визуальная полоса. */
 *::-webkit-scrollbar{width:0;height:0;display:none}
-img,canvas{
--webkit-user-drag:none;user-select:none
-}
+img,canvas{-webkit-user-drag:none;user-select:none}
+
+/* ============================================================================
+   v9.0 «АДАПТИВНОЕ ИЗДАНИЕ» — соответствие п. 3.2.1 / 3.3.3 Правил VK Mini Apps
+   ----------------------------------------------------------------------------
+   Вся типографика и все кликабельные элементы размечены через единый масштаб
+   --k = --u (вычисляется в JS по размеру окна) × --us (пользовательская
+   настройка «Размер интерфейса» в меню паузы).
+   Три компоновки:
+     • phone   (<640px по ширине)          — колонка: HUD сверху, поле, лавка;
+     • tablet/wide (>=640px)               — колонка с крупными элементами;
+     • desktop (>=760px и шире, чем выше)  — ДВЕ КОЛОНКИ: поле слева на всю
+       высоту экрана + панель HUD/лавки справа. Поле на большом мониторе
+       занимает всю высоту окна (раньше — только свободное место между HUD и
+       лавкой, то есть ~62% высоты, поэтому «поле было куда увеличить»).
+   Минимальный основной кегль — 13.5px на телефоне и до 21px на десктопе,
+   минимальная площадь кнопки — 42×42 CSS px (рекомендация по тапу).
+   ============================================================================ */
 :root{
+--u:1;                         /* масштаб от размера окна (ставит JS) */
+--us:1;                        /* масштаб от игрока (настройка) */
+--k:calc(var(--u) * var(--us));
+--fs-cap:calc(10.5px * var(--k));
+--fs-xs:calc(12px * var(--k));
+--fs-sm:calc(13.5px * var(--k));
+--fs-md:calc(15px * var(--k));
+--fs-lg:calc(17px * var(--k));
+--fs-xl:calc(20px * var(--k));
+--fs-h1:calc(26px * var(--k));
+--fs-h2:calc(21px * var(--k));
+--tap:calc(42px * var(--k));
+--gap:calc(6px * var(--k));
+--pad:calc(8px * var(--k));
+--rad:calc(6px * var(--k));
+--side-w:clamp(310px,30vw,560px);
 --ink:#241708;--parch:#e7d3a1;--woodline:#161009;--copper:#c9803a;--copper2:#8a5424;--gold:#f2c14e
 }
-/* v6.5: body fixed — защита от iOS overscroll/pull-to-refresh;
-#app fixed inset — без max-width, чтобы на Android ничего не обрезалось. */
 html,body{
 height:100%;width:100%;overflow:hidden;color:var(--ink);
 font-family:'Podkova','Georgia',serif;
+font-size:var(--fs-md);
 overscroll-behavior:none;touch-action:none
 }
 body{
@@ -105,57 +191,47 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 overscroll-behavior:none
 }
 #app{
-position:fixed;inset:0;display:flex;flex-direction:column;
+position:relative;
+width:100%;height:100%;max-width:1900px;margin:0 auto;
+display:flex;flex-direction:column;
 touch-action:none;overscroll-behavior:none
 }
-/* v6.6: #side — группировка HUD+лавки. В портрете display:contents (не влияет на
-компоновку колонки #app), в ландшафте становится правой панелью. */
 #side{display:contents}
-/* v6.8: flex-wrap:wrap — HUD физически не может вытолкнуть кнопки за край экрана. */
+
+/* ------------------------------------------------------------------ HUD --- */
 #hud{
-order:-1; /* HUD всегда первый в колонке #app (при display:contents) */
-display:flex;align-items:center;flex-wrap:wrap;row-gap:4px;gap:7px;padding:7px 9px;
-padding-top:calc(7px + env(safe-area-inset-top));
-padding-bottom:2px;
+order:0;
+display:flex;align-items:center;flex-wrap:wrap;gap:var(--gap);padding:var(--pad);
+padding-top:calc(var(--pad) + env(safe-area-inset-top));
+padding-bottom:calc(var(--pad) * .5);
 background:repeating-linear-gradient(90deg,#332516 0 74px,#2a1e11 74px 77px),linear-gradient(#3b2b19,#2a1e11);
 border-bottom:3px solid var(--woodline);
 box-shadow:0 2px 0 #4a3722 inset,0 3px 8px #0008;
 flex:0 0 auto
 }
 .hgold{
-display:flex;align-items:center;gap:5px;background:#1c130a;border:2px solid var(--copper2);
-border-radius:4px;padding:4px 8px;font-weight:700;color:var(--gold);font-size:15px;min-width:80px;
+display:flex;align-items:center;gap:calc(5px * var(--k));
+background:#1c130a;border:2px solid var(--copper2);border-radius:var(--rad);
+padding:calc(5px * var(--k)) calc(9px * var(--k));
+font-weight:700;color:var(--gold);font-size:var(--fs-lg);min-width:calc(84px * var(--k));
 justify-content:center;box-shadow:0 2px 0 #000 inset;text-shadow:0 2px 0 #000
 }
-.hmid{flex:1;display:flex;flex-direction:column;gap:2px;align-items:center;min-width:0}
+.hgold canvas{width:calc(20px * var(--k));height:calc(20px * var(--k));image-rendering:pixelated}
+.hmid{flex:1;display:flex;flex-direction:column;gap:calc(3px * var(--k));align-items:center;min-width:0}
 #streakPip{
-font-family:'Neucha',cursive;font-size:12px;color:#ffb070;cursor:pointer;line-height:1;
-padding:1px 6px;border-radius:8px;background:#1c130a88;border:1px solid #8a542466;transition:transform .08s
+align-self:center;
+font-family:'Neucha',cursive;font-size:var(--fs-xs);color:#ffb070;cursor:pointer;line-height:1;
+padding:calc(2px * var(--k)) calc(7px * var(--k));border-radius:calc(9px * var(--k));
+background:#1c130a88;border:1px solid #8a542466;transition:transform .08s
 }
 #streakPip:active{transform:scale(.94)}
-/* v8.0: рекламные чипы поверх поля. Немодальные — бой не блокируют;
-ролик стартует только по клику (модерация ВК). */
-#stage{position:relative}
-.chipAd{position:absolute;z-index:30;right:8px;top:8px;display:none;
-align-items:center;gap:6px;background:linear-gradient(#3a2b14,#241a0c);
-border:2px solid var(--gold);border-radius:20px;padding:7px 13px;
-color:var(--gold);font-family:'Podkova',Georgia,serif;font-weight:700;font-size:13.5px;
-box-shadow:0 3px 10px #000a,0 0 0 1px #000 inset;cursor:pointer;
-animation:chipPulse 1.6s ease-in-out infinite}
-.chipAd.boost{top:46px;border-color:#e8873a;color:#ffcf9a}
-.chipAd:active{transform:scale(.95);animation:none}
-.chipAd.show{display:flex}
-@keyframes chipPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
-@media (prefers-reduced-motion: reduce){.chipAd{animation:none}}
-.bigbtn.gold{background:linear-gradient(#f2c14e,#c9803a);color:#241708;border-color:#8a5424}
-.bigbtn.gold:disabled{opacity:.55;filter:saturate(.5)}
 #waveTxt{
-font-size:12.5px;font-weight:700;color:#e8d3a1;letter-spacing:.4px;
-text-shadow:0 2px 0 #000;white-space:nowrap /* v6.6: не переносится -> HUD ниже и поле больше */
+font-size:var(--fs-sm);font-weight:700;color:#e8d3a1;letter-spacing:.4px;
+text-shadow:0 2px 0 #000;white-space:nowrap
 }
 .hpbar{
-position:relative;width:100%;max-width:172px;height:13px;background:#1c130a;
-border:2px solid var(--woodline);border-radius:3px;overflow:hidden;box-shadow:0 2px 0 #0006
+position:relative;width:100%;max-width:calc(180px * var(--k));height:calc(14px * var(--k));background:#1c130a;
+border:2px solid var(--woodline);border-radius:calc(4px * var(--k));overflow:hidden;box-shadow:0 2px 0 #0006
 }
 #hpFill{height:100%;width:100%;background:linear-gradient(#8fbf5a,#5f8f3e);transition:width .2s}
 #hpFill::after{
@@ -164,22 +240,22 @@ background:repeating-linear-gradient(90deg,transparent 0 16px,#00000042 16px 18p
 }
 #hpTxt{
 position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-font-size:9.5px;font-weight:700;color:#fff;text-shadow:0 1px 0 #000
+font-size:var(--fs-cap);font-weight:700;color:#fff;text-shadow:0 1px 0 #000
 }
-/* v6.8: wrap + выравнивание по правому краю: кнопки не выходят за экран. */
-.hbtns{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.hbtns{display:flex;gap:calc(5px * var(--k));flex-wrap:wrap;justify-content:flex-end}
 .ibtn{
-min-width:38px;height:38px;padding:0 4px;display:flex;align-items:center;justify-content:center;
-background:linear-gradient(#efe0b4,#d9c185);border:2px solid var(--ink);border-radius:5px;
+min-width:calc(40px * var(--k));height:var(--tap);padding:0 calc(4px * var(--k));
+display:flex;align-items:center;justify-content:center;
+background:linear-gradient(#efe0b4,#d9c185);border:2px solid var(--ink);border-radius:var(--rad);
 box-shadow:2px 2px 0 #000;cursor:pointer;transition:transform .06s,box-shadow .06s,background .15s;
-font-family:'Podkova',serif;font-weight:700;font-size:14px;color:#4e3204
+font-family:'Podkova',serif;font-weight:700;font-size:var(--fs-md);color:#4e3204
 }
 .ibtn:active{transform:translate(2px,2px);box-shadow:0 0 0 #000}
-.ibtn canvas{image-rendering:pixelated}
+.ibtn canvas{image-rendering:pixelated;width:calc(20px * var(--k));height:calc(20px * var(--k))}
 .ibtn.spd{background:linear-gradient(#e0b45f,#b8862f);color:#3a2404}
 .ibtn.lang{
-background:linear-gradient(#cdb8ec,#a98fd8);color:#2a1840;letter-spacing:.5px;font-size:12.5px;
-min-width:40px;position:relative;overflow:hidden
+background:linear-gradient(#cdb8ec,#a98fd8);color:#2a1840;letter-spacing:.5px;font-size:var(--fs-sm);
+min-width:calc(42px * var(--k));position:relative;overflow:hidden
 }
 .ibtn.lang::after{
 content:"";position:absolute;inset:0;
@@ -187,42 +263,102 @@ background:linear-gradient(120deg,transparent 30%,#ffffff55 50%,transparent 70%)
 transform:translateX(-120%);transition:transform .5s
 }
 .ibtn.lang:hover::after{transform:translateX(120%)}
-/* v6.5: btnAd с явной наградой "+250" на кнопке (п. 4.5.1 модерации). */
-.ibtn.ad{min-width:58px;gap:3px;font-size:11.5px;letter-spacing:.3px;background:linear-gradient(#ffe89a,#f2c14e);color:#5e4423}
-#stage{
-flex:1 1 auto;min-height:0;min-width:0; /* min-width:0 для ряда в ландшафте */
-display:flex;align-items:center;justify-content:center;padding:6px;overflow:hidden
+.ibtn.ad{
+min-width:calc(62px * var(--k));gap:3px;font-size:var(--fs-xs);letter-spacing:.3px;
+background:linear-gradient(#ffe89a,#f2c14e);color:#5e4423
 }
-/* v6.5: canvas aspect-ratio 480/788 + max-width/max-height 100% -> нет обрезания
-и искажения при любой ориентации и размерах экрана. */
+/* v9.0: индикатор облачной синхронизации прогресса (п. 2.3.8) */
+.ibtn.sync{
+min-width:calc(40px * var(--k));position:relative;
+background:linear-gradient(#dfe8f5,#b9c8e0);color:#233a5e
+}
+.ibtn.sync.ok{background:linear-gradient(#cfecc8,#a6d79a);color:#1d3a12}
+.ibtn.sync.err{background:linear-gradient(#f4cfc2,#e0a08a);color:#5c1c0c}
+.ibtn.sync.off{background:linear-gradient(#e6ddc8,#cbbf9f);color:#4a3a1c}
+.ibtn.sync .dot{
+position:absolute;right:calc(3px * var(--k));top:calc(3px * var(--k));
+width:calc(8px * var(--k));height:calc(8px * var(--k));border-radius:50%;border:1px solid #0006;
+background:#7a8698
+}
+.ibtn.sync.ok .dot{background:#3f9e2e}
+.ibtn.sync.err .dot{background:#c0392b}
+.ibtn.sync.off .dot{background:#8a7a58}
+.ibtn.sync.spin .dot{animation:syncPulse .8s ease-in-out infinite}
+/* строка статуса синхронизации под лавкой */
+.syncFoot{
+display:flex;align-items:center;justify-content:center;gap:calc(7px * var(--k));
+width:100%;margin-top:auto;padding:calc(6px * var(--k));
+border:2px solid #4a3722;border-radius:var(--rad);cursor:pointer;
+background:#241a0c;color:#cbb894;font-family:'Podkova',serif;font-weight:700;
+font-size:var(--fs-cap);letter-spacing:.3px;box-shadow:0 2px 0 #0006
+}
+.syncFoot i{width:calc(9px * var(--k));height:calc(9px * var(--k));border-radius:50%;background:#8a7a58;flex:none;display:block}
+.syncFoot.ok i{background:#59c247;box-shadow:0 0 6px #59c24799}
+.syncFoot.err i{background:#e05a45}
+.syncFoot.wait i{background:#e2b23a;animation:syncPulse .8s ease-in-out infinite}
+.syncFoot:active{transform:translate(1px,1px)}
+.ibtn svg{width:calc(20px * var(--k));height:calc(20px * var(--k));display:block}
+/* п. 2.3.6/2.3.9: реклама недоступна на платформе — точки помечены */
+.adna{filter:grayscale(.65);opacity:.72}
+.syncStatus i{background:#8a7a58}
+.syncStatus.ok i{background:#3f9e2e}
+.syncStatus.err i{background:#c0392b}
+.syncStatus.wait i{background:#d6a02a}
+@keyframes syncPulse{0%,100%{opacity:.25}50%{opacity:1}}
+
+/* --------------------------------------------------------------- ПОЛЕ ----- */
+#stage{
+order:1;flex:1 1 auto;min-height:0;min-width:0;
+display:flex;align-items:center;justify-content:center;
+padding:calc(6px * var(--k));overflow:hidden;position:relative
+}
 #cv{
 touch-action:none;image-rendering:pixelated;image-rendering:crisp-edges;
 border:3px solid var(--woodline);border-radius:4px;
 box-shadow:0 0 0 2px #4a3722,0 12px 28px #000c;
 aspect-ratio:480/788;max-width:100%;max-height:100%;width:auto;height:auto;display:block
 }
-#shop{
-padding:7px 9px;padding-bottom:calc(7px + env(safe-area-inset-bottom));
-background:repeating-linear-gradient(90deg,#332516 0 74px,#2a1e11 74px 77px),linear-gradient(#3b2b19,#2a1e11);
-border-top:3px solid var(--woodline);display:flex;flex-direction:column;gap:6px;flex:0 0 auto
+/* рекламные чипы поверх поля (немодальные, ролик только по клику) */
+.chipAd{
+position:absolute;z-index:30;right:calc(10px * var(--k));top:calc(10px * var(--k));display:none;
+align-items:center;gap:calc(6px * var(--k));background:linear-gradient(#3a2b14,#241a0c);
+border:2px solid var(--gold);border-radius:calc(20px * var(--k));
+padding:calc(8px * var(--k)) calc(14px * var(--k));
+color:var(--gold);font-family:'Podkova',Georgia,serif;font-weight:700;font-size:var(--fs-sm);
+box-shadow:0 3px 10px #000a,0 0 0 1px #000 inset;cursor:pointer;
+animation:chipPulse 1.6s ease-in-out infinite
 }
-#towerRow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.chipAd.boost{top:calc(52px * var(--k));border-color:#e8873a;color:#ffcf9a}
+.chipAd:active{transform:scale(.95);animation:none}
+.chipAd.show{display:flex}
+@keyframes chipPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@media (prefers-reduced-motion: reduce){.chipAd{animation:none}}
+
+/* --------------------------------------------------------------- ЛАВКА ---- */
+#shop{
+order:2;
+padding:var(--pad);padding-bottom:calc(var(--pad) + env(safe-area-inset-bottom));
+background:repeating-linear-gradient(90deg,#332516 0 74px,#2a1e11 74px 77px),linear-gradient(#3b2b19,#2a1e11);
+border-top:3px solid var(--woodline);display:flex;flex-direction:column;gap:var(--gap);flex:0 0 auto
+}
+#towerRow{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap)}
 .tcard{
-display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 2px 4px;
-background:linear-gradient(#efe0b4,#d9c185);border:2px solid var(--ink);border-radius:5px;
+display:flex;flex-direction:column;align-items:center;gap:calc(2px * var(--k));
+padding:calc(6px * var(--k)) calc(2px * var(--k)) calc(5px * var(--k));
+background:linear-gradient(#efe0b4,#d9c185);border:2px solid var(--ink);border-radius:var(--rad);
 box-shadow:3px 3px 0 #000a;color:var(--ink);cursor:pointer;transition:transform .06s,box-shadow .06s;line-height:1.05
 }
 .tcard:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000a}
-.tcard canvas{image-rendering:pixelated}
-.tname{font-weight:700;font-size:10.5px;white-space:nowrap}
-.tcost{font-weight:700;color:#8a5410;font-size:10.5px}
+.tcard canvas{image-rendering:pixelated;width:calc(31px * var(--k));height:calc(31px * var(--k))}
+.tname{font-weight:700;font-size:var(--fs-sm);white-space:nowrap}
+.tcost{font-weight:700;color:#8a5410;font-size:var(--fs-sm)}
 .tcard.locked{filter:grayscale(1);opacity:.55}
 .tcard.off{opacity:.5}
-#actionRow{display:grid;grid-template-columns:1.7fr 1fr 1fr;gap:6px}
-#potionRow{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+#actionRow{display:grid;grid-template-columns:1.7fr 1fr 1fr;gap:var(--gap)}
+#potionRow{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--gap)}
 .act{
-height:42px;border-radius:5px;border:2px solid var(--ink);background:linear-gradient(#efe0b4,#d9c185);
-color:var(--ink);font-family:'Podkova',serif;font-size:13.5px;font-weight:700;letter-spacing:.3px;
+height:var(--tap);border-radius:var(--rad);border:2px solid var(--ink);background:linear-gradient(#efe0b4,#d9c185);
+color:var(--ink);font-family:'Podkova',serif;font-size:var(--fs-md);font-weight:700;letter-spacing:.3px;
 box-shadow:3px 3px 0 #000a;cursor:pointer;transition:transform .06s,box-shadow .06s
 }
 .act:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000a}
@@ -237,26 +373,28 @@ box-shadow:1px 1px 0 #000a;transform:translate(1px,1px)
 50%{box-shadow:3px 3px 0 #000a,0 0 0 7px #e0554500}
 }
 .pcard{
-display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;height:46px;
-background:linear-gradient(#efe0b4,#d9c185);border:2px solid var(--ink);border-radius:5px;
+display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(2px * var(--k));
+height:calc(50px * var(--k));
+background:linear-gradient(#efe0b4,#d9c185);border:2px solid var(--ink);border-radius:var(--rad);
 box-shadow:3px 3px 0 #000a;cursor:pointer;color:var(--ink);line-height:1;transition:transform .06s,box-shadow .06s
 }
 .pcard:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000a}
-.pcard canvas{image-rendering:pixelated}
-.plab{font-weight:700;font-size:10px}
-.pstat{color:#8a5410;font-size:9px;font-weight:700}
+.pcard canvas{image-rendering:pixelated;width:calc(18px * var(--k));height:calc(18px * var(--k))}
+.plab{font-weight:700;font-size:var(--fs-xs)}
+.pstat{color:#8a5410;font-size:var(--fs-cap);font-weight:700}
 .pcard.armed{background:linear-gradient(#e0b45f,#b8862f);border-color:#5e3f08}
-/* v6.7: .panel сохраняет свайп-скролл (overflow-y:auto), но полоса скрыта
-глобальным правилом *::-webkit-scrollbar / scrollbar-width:none. */
+
+/* ------------------------------------------------------------- ОВЕРЛЕИ ---- */
 .ov{
 position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-background:#0a0d07d9;backdrop-filter:blur(3px);z-index:50;padding:14px;overscroll-behavior:none
+background:#0a0d07d9;backdrop-filter:blur(3px);z-index:50;padding:calc(14px * var(--k));overscroll-behavior:none
 }
 .ov.show{display:flex}
 .panel{
 position:relative;
 background:radial-gradient(140% 120% at 30% 20%,#efe0b4 0%,#e2cd9a 55%,#d3b87e 100%);
-border:3px solid var(--ink);border-radius:6px;padding:20px 18px;max-width:94vw;width:390px;
+border:3px solid var(--ink);border-radius:var(--rad);padding:calc(20px * var(--k)) calc(18px * var(--k));
+max-width:min(94vw,calc(430px * var(--k)));width:100%;
 max-height:92vh;overflow-y:auto;
 text-align:center;color:var(--ink);box-shadow:0 0 0 3px var(--copper),0 0 0 5px var(--ink),10px 12px 0 #000b
 }
@@ -266,70 +404,82 @@ content:"";position:absolute;width:9px;height:9px;background:#8a5424;border:2px 
 .panel::before{left:8px}
 .panel::after{right:8px}
 .panel h1{
-font-size:24px;font-weight:700;color:#7a2c12;letter-spacing:.5px;
-text-shadow:2px 2px 0 #f2c14e66;margin-bottom:2px
+font-size:var(--fs-h1);font-weight:700;color:#7a2c12;letter-spacing:.5px;
+text-shadow:2px 2px 0 #f2c14e66;margin-bottom:calc(2px * var(--k))
 }
-.panel h2{font-size:20px;font-weight:700;color:#7a2c12;margin-bottom:6px}
-.panel p{font-size:13.5px;color:#5e4423;margin:5px 0;line-height:1.45}
-.panel .sub{font-family:'Neucha',cursive;font-size:14px;color:#7a5c30}
-.logoRow{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:4px}
-.logoRow canvas{image-rendering:pixelated}
+.panel h2{font-size:var(--fs-h2);font-weight:700;color:#7a2c12;margin-bottom:calc(6px * var(--k))}
+.panel p{font-size:var(--fs-md);color:#5e4423;margin:calc(6px * var(--k)) 0;line-height:1.5}
+.panel .sub{font-family:'Neucha',cursive;font-size:var(--fs-md);color:#7a5c30}
+.logoRow{display:flex;align-items:center;justify-content:center;gap:calc(10px * var(--k));margin-bottom:calc(4px * var(--k))}
+.logoRow canvas{image-rendering:pixelated;width:calc(40px * var(--k));height:calc(40px * var(--k))}
 .bigbtn{
-display:block;width:100%;margin-top:10px;padding:12px;border-radius:5px;border:2px solid var(--ink);
-font-family:'Podkova',serif;font-weight:700;font-size:16px;letter-spacing:.5px;cursor:pointer;
+display:block;width:100%;margin-top:calc(10px * var(--k));padding:calc(13px * var(--k));
+border-radius:var(--rad);border:2px solid var(--ink);
+font-family:'Podkova',serif;font-weight:700;font-size:var(--fs-lg);letter-spacing:.5px;cursor:pointer;
 box-shadow:3px 3px 0 #000a;transition:transform .06s,box-shadow .06s
 }
 .bigbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000a}
 .bigbtn.green{background:linear-gradient(#8fbf5a,#5f8f3e);color:#1c2a0c;border-color:#22330e}
 .bigbtn.red{background:linear-gradient(#d95f43,#a83222);color:#ffe9c9;border-color:#4e1208}
 .bigbtn.gray{background:linear-gradient(#efe0b4,#d9c185);color:var(--ink)}
+.bigbtn.gold{background:linear-gradient(#f2c14e,#c9803a);color:#241708;border-color:#8a5424}
+.bigbtn.gold:disabled{opacity:.55;filter:saturate(.5)}
+.bigbtn:disabled{opacity:.6}
 .rules{
-text-align:left;margin:10px 6px 4px;font-family:'Neucha',cursive;font-size:15px;color:#4a3418;line-height:1.6
+text-align:left;margin:calc(10px * var(--k)) calc(6px * var(--k)) calc(4px * var(--k));
+font-family:'Neucha',cursive;font-size:var(--fs-md);color:#4a3418;line-height:1.55
 }
 .rules b{color:#7a2c12}
 .rrow{
-display:flex;align-items:center;gap:9px;background:#f2e4bb;border:2px solid var(--ink);border-radius:5px;
-padding:7px 9px;margin:7px 0;text-align:left;box-shadow:2px 2px 0 #0006
+display:flex;align-items:center;gap:calc(9px * var(--k));background:#f2e4bb;border:2px solid var(--ink);
+border-radius:var(--rad);padding:calc(8px * var(--k)) calc(10px * var(--k));margin:calc(7px * var(--k)) 0;
+text-align:left;box-shadow:2px 2px 0 #0006
 }
-.rrow canvas{image-rendering:pixelated;flex:none}
-.rinfo{flex:1}
-.rinfo b{font-size:13px;color:#7a2c12}
-.rinfo span{display:block;font-size:11px;color:#6b4e26;font-family:'Neucha',cursive}
-.pips{display:flex;gap:3px;margin-top:4px}
-.pips i{width:10px;height:10px;background:#cbb27c;border:2px solid var(--ink)}
+.rrow canvas{image-rendering:pixelated;flex:none;width:calc(24px * var(--k));height:auto}
+.rinfo{flex:1;min-width:0}
+.rinfo b{font-size:var(--fs-sm);color:#7a2c12}
+.rinfo span{display:block;font-size:var(--fs-xs);color:#6b4e26;font-family:'Neucha',cursive}
+.pips{display:flex;gap:3px;margin-top:calc(4px * var(--k));flex-wrap:wrap}
+.pips i{width:calc(11px * var(--k));height:calc(11px * var(--k));background:#cbb27c;border:2px solid var(--ink)}
 .pips i.on{background:var(--gold)}
 .rbuy{
-min-width:74px;padding:7px 5px;border-radius:4px;border:2px solid var(--ink);
-background:linear-gradient(#f2c14e,#c98f2a);color:#4e3204;font-family:'Podkova',serif;
-font-weight:700;font-size:11.5px;cursor:pointer;box-shadow:2px 2px 0 #0008
+min-width:calc(84px * var(--k));padding:calc(9px * var(--k)) calc(6px * var(--k));border-radius:var(--rad);
+border:2px solid var(--ink);background:linear-gradient(#f2c14e,#c98f2a);color:#4e3204;
+font-family:'Podkova',serif;font-weight:700;font-size:var(--fs-xs);cursor:pointer;box-shadow:2px 2px 0 #0008
 }
 .rbuy:disabled{background:#cbb27c;color:#7d6a45;box-shadow:none;cursor:default}
 .qmark{
-width:26px;height:26px;border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;
-font-weight:700;font-size:15px;background:#cbb27c;color:#5e4423;flex:none
+width:calc(28px * var(--k));height:calc(28px * var(--k));border:2px solid var(--ink);
+display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--fs-md);
+background:#cbb27c;color:#5e4423;flex:none
 }
-.plus{font-weight:700;font-size:14px;color:#5e4423}
+.plus{font-weight:700;font-size:var(--fs-md);color:#5e4423}
 .done{color:#3f6d2a;font-weight:700}
 .ccard{
-display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;padding:11px 6px;margin:7px 0;
-background:#f2e4bb;border:2px solid var(--ink);border-radius:5px;box-shadow:3px 3px 0 #0008;cursor:pointer;
+display:flex;flex-direction:column;align-items:center;gap:calc(4px * var(--k));width:100%;
+padding:calc(12px * var(--k)) calc(6px * var(--k));margin:calc(7px * var(--k)) 0;
+background:#f2e4bb;border:2px solid var(--ink);border-radius:var(--rad);box-shadow:3px 3px 0 #0008;cursor:pointer;
 font-family:'Podkova',serif;transition:transform .06s,box-shadow .06s
 }
 .ccard:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #0008}
-.ccard canvas{image-rendering:pixelated}
-.ccard b{font-size:15px;color:#7a2c12}
-.ccard span{font-size:11.5px;color:#6b4e26;font-family:'Neucha',cursive}
+.ccard canvas{image-rendering:pixelated;width:calc(30px * var(--k));height:auto}
+.ccard b{font-size:var(--fs-lg);color:#7a2c12}
+.ccard span{font-size:var(--fs-sm);color:#6b4e26;font-family:'Neucha',cursive}
 .ccard.ad{border-color:#8a5424;background:linear-gradient(#f6e2b0,#e6c98a)}
 .ccard.reveal{border-style:dashed;background:#e9dcb6}
-#relicSky{image-rendering:pixelated;width:100%;height:auto;display:block;margin:4px 0 2px;border-radius:4px}
-.streakRow{display:flex;gap:5px;justify-content:center;margin:8px 0;flex-wrap:wrap}
+#relicSky{image-rendering:pixelated;width:100%;height:auto;display:block;margin:calc(4px * var(--k)) 0 calc(2px * var(--k));border-radius:4px}
+.streakRow{display:flex;gap:calc(5px * var(--k));justify-content:center;margin:calc(8px * var(--k)) 0;flex-wrap:wrap}
 .sday{
-display:flex;flex-direction:column;align-items:center;gap:2px;width:42px;padding:5px 2px;
-border:2px solid var(--ink);border-radius:5px;background:#e9dcb6;font-size:9px;font-weight:700;color:#6b4e26
+display:flex;flex-direction:column;align-items:center;gap:calc(2px * var(--k));
+width:calc(46px * var(--k));padding:calc(6px * var(--k)) calc(2px * var(--k));
+border:2px solid var(--ink);border-radius:var(--rad);background:#e9dcb6;
+font-size:var(--fs-cap);font-weight:700;color:#6b4e26
 }
-.sday canvas{image-rendering:pixelated}
+.sday canvas{image-rendering:pixelated;width:calc(18px * var(--k));height:auto}
 .sday.now{background:#f2c14e;color:#3a2404;box-shadow:0 0 0 2px #8a5424}
 .sday.got{opacity:.55}
+
+/* --------------------------------------------------------- ОБУЧЕНИЕ ------- */
 .tutBlock{position:fixed;display:none;background:#0a0d07d9;z-index:60}
 #tutRing{
 position:fixed;display:none;border:3px solid var(--gold);border-radius:8px;z-index:61;pointer-events:none;
@@ -346,9 +496,9 @@ box-shadow:0 0 0 4px #16102266,0 0 16px #f2c14e66;animation:ringPulse 1.3s ease-
 75%{transform:translate(5px,0)}
 }
 #tutBox{
-position:fixed;display:none;z-index:62;width:min(330px,88vw);
+position:fixed;display:none;z-index:62;width:min(calc(360px * var(--k)),90vw);
 background:radial-gradient(130% 130% at 25% 15%,#efe0b4,#d9c185);
-border:3px solid var(--ink);border-radius:6px;padding:12px 13px;
+border:3px solid var(--ink);border-radius:var(--rad);padding:calc(13px * var(--k)) calc(14px * var(--k));
 box-shadow:0 0 0 3px var(--copper),0 0 0 5px var(--ink),8px 10px 0 #000a
 }
 #tutBox::after{
@@ -357,188 +507,250 @@ border-right:3px solid var(--ink);border-bottom:3px solid var(--ink);left:var(--
 }
 #tutBox.below::after{top:-10px;transform:rotate(-135deg)}
 #tutBox.above::after{bottom:-10px;transform:rotate(45deg)}
-.mentorRow{display:flex;gap:10px;align-items:flex-start}
-#mentorCv{image-rendering:pixelated;flex:none;animation:mentorBob 2.4s ease-in-out infinite}
+.mentorRow{display:flex;gap:calc(10px * var(--k));align-items:flex-start}
+#mentorCv{image-rendering:pixelated;flex:none;width:calc(52px * var(--k));height:calc(52px * var(--k));animation:mentorBob 2.4s ease-in-out infinite}
 @keyframes mentorBob{
 0%,100%{transform:translateY(0)}
 50%{transform:translateY(-3px)}
 }
 #tutName{
-font-weight:700;font-size:11.5px;color:#7a2c12;letter-spacing:.8px;text-transform:uppercase;margin-bottom:3px
+font-weight:700;font-size:var(--fs-xs);color:#7a2c12;letter-spacing:.8px;text-transform:uppercase;margin-bottom:3px
 }
-#tutTxt{font-family:'Neucha',cursive;font-size:15.5px;color:#3d2c12;line-height:1.35;min-height:64px;cursor:pointer}
-.tutBtns{display:flex;gap:8px;justify-content:flex-end;margin-top:8px;align-items:center}
-#tutHint{font-family:'Neucha',cursive;font-size:12px;color:#8a5410;margin-right:auto}
+#tutTxt{font-family:'Neucha',cursive;font-size:var(--fs-lg);color:#3d2c12;line-height:1.35;min-height:calc(66px * var(--k));cursor:pointer}
+.tutBtns{display:flex;gap:calc(8px * var(--k));justify-content:flex-end;margin-top:calc(8px * var(--k));align-items:center}
+#tutHint{font-family:'Neucha',cursive;font-size:var(--fs-xs);color:#8a5410;margin-right:auto}
 #tutSkip{
-background:none;border:none;font-family:'Podkova',serif;font-size:12.5px;color:#8a6a3a;
+background:none;border:none;font-family:'Podkova',serif;font-size:var(--fs-sm);color:#8a6a3a;
 text-decoration:underline;cursor:pointer;padding:4px
 }
 #tutNext{
-padding:8px 16px;border-radius:5px;border:2px solid #22330e;background:linear-gradient(#8fbf5a,#5f8f3e);
-color:#1c2a0c;font-family:'Podkova',serif;font-weight:700;font-size:14px;cursor:pointer;box-shadow:2px 2px 0 #0008
+padding:calc(9px * var(--k)) calc(18px * var(--k));border-radius:var(--rad);border:2px solid #22330e;
+background:linear-gradient(#8fbf5a,#5f8f3e);color:#1c2a0c;font-family:'Podkova',serif;font-weight:700;
+font-size:var(--fs-md);cursor:pointer;box-shadow:2px 2px 0 #0008
 }
 #tutNext:active{transform:translate(1px,1px);box-shadow:1px 1px 0 #0008}
+
+/* ------------------------------------------------------ СЛУЖЕБНОЕ --------- */
 #adOverlay{
 position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
-display:none;align-items:center;gap:9px;background:#1c130aee;border:2px solid var(--copper);
-color:var(--gold);padding:9px 16px;border-radius:4px;z-index:99;font-size:14px;font-weight:700;
-box-shadow:3px 3px 0 #000a
+display:none;align-items:center;gap:calc(9px * var(--k));background:#1c130aee;border:2px solid var(--copper);
+color:var(--gold);padding:calc(10px * var(--k)) calc(17px * var(--k));border-radius:var(--rad);z-index:99;
+font-size:var(--fs-md);font-weight:700;box-shadow:3px 3px 0 #000a
 }
 #adOverlay.show{display:flex}
 .spin{width:13px;height:13px;border:3px solid var(--gold);border-top-color:transparent;animation:sp .7s steps(8) infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-@media (max-width:360px){
-.tname{font-size:9px}
-.act{font-size:12px}
-.panel h1{font-size:21px}
-.plab{font-size:9px}
-.ibtn{min-width:34px;font-size:12px}
-.ibtn.lang{min-width:36px;font-size:11px}
-.ibtn.ad{min-width:50px;font-size:10.5px}
-}
-/* ============ v6.8: HUD В ДВЕ СТРОКИ НА УЗКИХ ЭКРАНАХ (п. 1.10.1) ============
-Раньше HUD был одной строкой: казна(80) + 6 кнопок(~275) + padding + min-content
-центра ≈ 447px — на телефонах 320-412px кнопки паузы/звука уходили за правый край
-(обрезание элементов). Теперь при ширине <=520px: строка 1 — казна + волна/HP,
-строка 2 — все 6 кнопок по центру (переносятся сами, если совсем узко). */
-@media (max-width:520px){
-#hud{gap:4px 6px;padding:5px 6px;padding-top:calc(5px + env(safe-area-inset-top))}
-.hgold{order:1;min-width:64px;font-size:13px;padding:3px 6px}
-.hmid{order:2;flex:1;min-width:120px;align-items:stretch;gap:1px}
-#waveTxt{font-size:11px}
-.hpbar{max-width:none;height:11px}
-#streakPip{font-size:10px;padding:0 5px}
-.hbtns{order:3;width:100%;justify-content:center;flex-wrap:wrap;gap:4px}
-.ibtn{min-width:32px;height:32px}
-.ibtn.lang{min-width:34px;font-size:11px}
-.ibtn.ad{min-width:48px;font-size:10px}
-}
-/* ============ v6.6/v6.7: КОМПАКТ ДЛЯ НИЗКОГО ПОРТРЕТА ============
-Поле должно оставаться читаемым: ужимаем HUD и лавку, чтобы #stage получил высоту. */
-@media (orientation:portrait) and (max-height:560px){
-#hud{padding:4px 6px;padding-top:calc(4px + env(safe-area-inset-top));gap:5px}
-.hgold{min-width:64px;font-size:13px;padding:3px 6px}
-.ibtn{min-width:32px;height:32px}
-.ibtn.ad{min-width:50px;font-size:10px}
-#shop{padding:4px 6px;padding-bottom:calc(4px + env(safe-area-inset-bottom));gap:4px}
-#towerRow{gap:4px}
-.tcard{padding:3px 2px 2px}
-.tcard canvas{width:26px;height:26px}
-.tname{font-size:9px}
-.tcost{font-size:9px}
-.act{height:34px;font-size:12px}
-#potionRow{gap:4px}
-.pcard{height:38px}
-.pcard canvas{width:16px;height:16px}
-.plab{font-size:8.5px}
-.pstat{font-size:8px}
-}
-/* ============ v6.8: КОМПАКТ ПАНЕЛЕЙ ДЛЯ НИЗКИХ ЭКРАНОВ (п. 1.10.1) ============
-Оверлеи (.panel) на низких экранах ужимаются так, чтобы контент не выглядел
-обрезанным: старт-панель при 360px высоты помещается целиком. */
-@media (max-height:560px){
-.panel{padding:12px 14px;width:360px;max-height:94vh}
-.panel h1{font-size:20px}
-.panel h2{font-size:17px}
-.panel p{font-size:12px;margin:3px 0}
-.panel .sub{font-size:12px}
-.rules{font-size:13px;line-height:1.4;margin:6px 4px}
-.bigbtn{padding:9px;margin-top:7px;font-size:14px}
-.ccard{padding:8px 4px;margin:5px 0}
-.ccard b{font-size:13px}
-.ccard span{font-size:10px}
-.rrow{padding:5px 7px;margin:5px 0}
-.sday{width:38px;padding:3px 2px}
-.logoRow{margin-bottom:0}
-}
-@media (max-height:420px){
-.rules{display:none} /* правила доступны в обучении; панель гарантированно влезает */
-.panel{max-height:96vh;padding:10px 12px}
-.bigbtn{padding:7px;margin-top:5px;font-size:13px}
-.panel p{margin:2px 0;font-size:11px}
-.panel .sub{font-size:11px}
-.logoRow canvas{width:28px;height:28px}
-}
-/* ============ v6.7: ЛАНДШАФТ — ПРАВАЯ ПАНЕЛЬ БЕЗ СКРОЛЛБАРА ============
-Главный фикс читаемости (v6.6): в ландшафте #app становится рядом, поле слева
-на ВСЮ высоту, HUD+лавка — в правой панели #side.
-Фикс скроллбаров (v6.7): панель собрана компактно и влезает без скролла:
-HUD — flex-wrap в две строки, лавка — каждый ряд в ОДНУ строку (4 / 3 / 5 колонок).
-overflow-y:auto оставлен только страховки ради (полоса скрыта глобально). */
-@media (orientation:landscape) and (max-height:560px){
-#app{flex-direction:row}
-#side{
-display:flex;flex-direction:column;
-flex:0 0 clamp(216px,32vw,300px);width:clamp(216px,32vw,300px);
-overflow-y:auto;overflow-x:hidden;
-touch-action:pan-y;overscroll-behavior:contain;
-border-left:3px solid var(--woodline);
-background:repeating-linear-gradient(90deg,#332516 0 74px,#2a1e11 74px 77px),linear-gradient(#3b2b19,#2a1e11)
-}
-/* HUD: строка 1 — золото + (волна/HP), строка 2 — кнопки по центру */
-#hud{
-flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:5px 6px;
-background:none;border-bottom:2px solid var(--woodline);box-shadow:none
-}
-.hgold{order:1;min-width:64px;font-size:13px;padding:3px 6px}
-.hmid{order:2;flex:1;align-items:stretch;gap:1px}
-#streakPip{font-size:10px;padding:0 5px}
-#waveTxt{font-size:10.5px}
-.hpbar{max-width:none;height:11px}
-.hbtns{order:3;width:100%;justify-content:center;gap:4px;flex-wrap:nowrap}
-.ibtn{min-width:30px;height:30px}
-.ibtn.lang{min-width:32px;font-size:11px}
-.ibtn.ad{min-width:48px;font-size:10px}
-/* Лавка: все ряды в одну строку, компактно */
-#shop{padding:5px 6px;gap:4px;border-top:none;background:none}
-#towerRow{grid-template-columns:repeat(4,1fr);gap:4px}
-.tcard{padding:3px 1px 2px}
-.tcard canvas{width:22px;height:22px}
-.tname{font-size:8px}
-.tcost{font-size:8px}
-#actionRow{grid-template-columns:1.2fr 1fr 1fr;gap:4px}
-.act{height:30px;font-size:11px}
-#potionRow{grid-template-columns:repeat(5,1fr);gap:4px}
-.pcard{height:36px}
-.pcard canvas{width:14px;height:14px}
-.plab{font-size:7.5px}
-.pstat{font-size:7px}
-#stage{padding:4px}
-}
-/* ============ v6.8: УЛЬТРА-КОМПАКТ ЛАНДШАФТ-ПАНЕЛИ (<=340px высоты, п. 1.10.1) ============
-Гарантия, что HUD+лавка влезают без обрезания даже на 480x320 и ниже. */
-@media (orientation:landscape) and (max-height:340px){
-#hud{padding:3px 4px;gap:3px 4px}
-.ibtn{min-width:26px;height:26px}
-.ibtn.ad{min-width:42px;font-size:9px}
-.hgold{min-width:56px;font-size:12px;padding:2px 5px}
-#shop{padding:3px 4px;gap:3px}
-.tcard canvas{width:18px;height:18px}
-.tname{font-size:7px}
-.tcost{font-size:7px}
-.act{height:26px;font-size:10px}
-.pcard{height:30px}
-.pcard canvas{width:12px;height:12px}
-.plab{font-size:6.5px}
-.pstat{font-size:6px}
-}
-/* ============ v8.1: СООТВЕТСТВИЕ ПРАВИЛАМ ВК (ред. 17.03.2026) ============ */
-/* п. 2.1.5: возрастная маркировка — видна при первом запуске */
 .ageTag{position:absolute;top:10px;right:12px;border:2px solid #7a2c12;color:#7a2c12;
-font-family:'Podkova',Georgia,serif;font-weight:700;font-size:12px;line-height:1;
-padding:3px 6px;border-radius:4px;background:#f2e4bb88;z-index:1}
-/* п. 1.1.4: ссылка на политику конфиденциальности в меню */
-.legalRow{margin-top:12px;margin-bottom:0;font-size:11.5px;color:#8a5410}
+font-family:'Podkova',Georgia,serif;font-weight:700;font-size:var(--fs-xs);line-height:1;
+padding:calc(3px * var(--k)) calc(7px * var(--k));border-radius:4px;background:#f2e4bb88;z-index:1}
+.legalRow{margin-top:calc(12px * var(--k));margin-bottom:0;font-size:var(--fs-xs);color:#8a5410}
 .legalRow a{color:#8a5410;text-decoration:underline;cursor:pointer}
-/* п. 1.1.4: модал согласия — поверх стартового экрана */
 #consentOv{z-index:70}
 #consentOv .panel{text-align:left}
-#consentOv p{font-size:13px;line-height:1.5}
-/* п. 3.5.2: индикация загрузки до готовности игры */
-#bootSpin{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:200;
-background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100%)}
+#consentOv p{font-size:var(--fs-md);line-height:1.5}
+#bootSpin{position:fixed;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;
+z-index:200;background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100%);
+color:#e7d3a1;font-size:var(--fs-md)}
 #bootSpin.off{display:none}
 #bootSpin .spin{width:22px;height:22px;border-width:4px}
+
+/* --------- v9.0: панель синхронизации прогресса (п. 2.3.8 Правил ВК) ------- */
+#syncOv .panel{text-align:left}
+.syncBox{background:#f2e4bb;border:2px solid var(--ink);border-radius:var(--rad);padding:calc(10px * var(--k));margin:calc(8px * var(--k)) 0}
+.syncBox b{color:#7a2c12;font-size:var(--fs-sm)}
+.syncBox span{display:block;font-family:'Neucha',cursive;font-size:var(--fs-sm);color:#6b4e26;line-height:1.45}
+.syncStatus{display:flex;align-items:center;gap:calc(8px * var(--k));font-weight:700;color:#4a3418;font-size:var(--fs-sm);margin:calc(6px * var(--k)) 0}
+.syncStatus i{
+width:calc(11px * var(--k));height:calc(11px * var(--k));border-radius:50%;background:#8a7a58;display:block;flex:none
+}
+.syncStatus.ok i{background:#3f9e2e}
+.syncStatus.err i{background:#c0392b}
+.syncStatus.wait i{background:#d6a02a}
+.codeArea{
+width:100%;min-height:calc(84px * var(--k));resize:vertical;background:#fff8e6;border:2px solid var(--ink);
+border-radius:var(--rad);padding:calc(8px * var(--k));font-family:Menlo,Consolas,monospace;
+font-size:var(--fs-xs);color:#3d2c12;user-select:text;-webkit-user-select:text;word-break:break-all
+}
+.syncBtns{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap)}
+.syncBtns .bigbtn{margin-top:0}
+
+/* v9.0: стартовое меню на невысоких десктоп-экранах (1366x768 и ниже) —
+   правила в две колонки, чтобы панель влезала без прокрутки */
+@media (min-width:640px) and (max-height:860px){
+#startOv .panel{padding:calc(14px * var(--k)) calc(16px * var(--k))}
+#startOv .rules{column-count:1;font-size:calc(13.5px * var(--k));line-height:1.42;margin:calc(6px * var(--k)) 0}
+#startOv .panel h1{font-size:calc(24px * var(--k))}
+#startOv .logoRow canvas{width:calc(34px * var(--k));height:calc(34px * var(--k))}
+#startOv .bigbtn{margin-top:calc(7px * var(--k));padding:calc(10px * var(--k));font-size:calc(16px * var(--k))}
+#startOv .sub{font-size:calc(13px * var(--k))}
+}
+
+/* ======================= ЛАНДШАФТ / ПЛАНШЕТ / ДЕСКТОП ===================== */
+/* v9.0: с 640px по ширине — крупнее элементы, HUD в две строки. */
+@media (min-width:640px) and (orientation:portrait){
+#hud{gap:calc(7px * var(--k))}
+.hmid{align-items:flex-end}
+}
+/* v9.0: НИЗКИЙ ПОРТРЕТ (маленькие телефоны по высоте) — ужимаем хром, поле важнее */
+@media (orientation:portrait) and (max-height:700px){
+/* v9.0: на невысоких телефонах отдаём вертикаль полю, а не хрому */
+.syncFoot{padding:calc(4px * var(--k));font-size:calc(10px * var(--k))}
+#shop{gap:calc(4px * var(--k));padding:calc(5px * var(--k))}
+.tcard{padding:calc(4px * var(--k)) calc(2px * var(--k)) calc(3px * var(--k));gap:calc(1px * var(--k))}
+.tcard canvas{width:calc(24px * var(--k));height:calc(24px * var(--k))}
+.act{height:calc(37px * var(--k))}
+.pcard{height:calc(44px * var(--k))}
+#hud{gap:calc(4px * var(--k));padding:calc(5px * var(--k))}
+}
+@media (orientation:portrait) and (max-height:560px){
+#shop{padding:calc(4px * var(--k));gap:calc(4px * var(--k))}
+.act{height:calc(36px * var(--k))}
+.pcard{height:calc(40px * var(--k))}
+.tcard{padding:calc(3px * var(--k)) calc(1px * var(--k)) calc(2px * var(--k))}
+.tcard canvas{width:calc(23px * var(--k));height:calc(23px * var(--k))}
+.hpbar{height:calc(12px * var(--k))}
+.ibtn{height:calc(36px * var(--k));min-width:calc(34px * var(--k))}
+}
+/* v9.0: ДЕСКТОП / ЛАНДШАФТ — ДВЕ КОЛОНКИ.
+   Условие: ширина >= 760px И окно не вытянуто в портрет.
+   Раньше вторая колонка включалась только при max-height:560px, поэтому на
+   обычном мониторе (1920x1080, 1366x768) игра оставалась «мобильной» колонкой
+   с мелким текстом и полем в центре экрана. */
+@media (min-width:640px) and (min-aspect-ratio:1/1), (min-width:1000px){
+#app{flex-direction:row;align-items:stretch;justify-content:center;gap:0}
+#side{
+display:flex;flex-direction:column;order:2;flex:0 0 var(--side-w);width:var(--side-w);
+overflow-y:auto;overflow-x:hidden;touch-action:pan-y;overscroll-behavior:contain;
+border-left:3px solid var(--woodline);
+background:repeating-linear-gradient(90deg,#332516 0 74px,#2a1e11 74px 77px),linear-gradient(#3b2b19,#2a1e11);
+box-shadow:-6px 0 18px #0006
+}
+/* Поле на десктопе занимает ВСЮ высоту окна: ширина выводится из высоты через
+   пропорцию поля 480:788, поэтому «воздуха» вокруг не остаётся, а пара
+   «поле + панель» центрируется по горизонтали. */
+#stage{order:1;flex:0 0 auto;flex-direction:column;height:100%;
+width:calc((100vh - 20px) * 0.60914 + 20px);padding:calc(10px * var(--k))}
+#side{max-width:var(--side-w)}
+#hud{
+order:0;width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;
+gap:calc(6px * var(--k));padding:calc(10px * var(--k)) calc(10px * var(--k)) calc(8px * var(--k));
+border-bottom:3px solid var(--woodline);background:none;box-shadow:none
+}
+.hgold{order:1;min-width:calc(96px * var(--k));font-size:var(--fs-xl)}
+.hmid{order:2;flex:1 1 0;min-width:calc(100px * var(--k));align-items:stretch;gap:calc(4px * var(--k))}
+.hpbar{max-width:none;height:calc(15px * var(--k))}
+/* кнопки HUD — отдельной строкой на всю ширину панели: 7 кнопок в 300px не влезают */
+.hbtns{order:3;flex:1 1 100%;width:100%;justify-content:center;gap:calc(6px * var(--k))}
+#shop{order:1;width:100%;flex:1 1 auto;border-top:none;background:none;
+gap:calc(7px * var(--k));padding:calc(8px * var(--k))}
+#shop>.syncFoot{margin-top:auto}
+/* Список башен в одну колонку: название и цена гарантированно не обрезаются
+   (п. 3.3.3 Правил — текст должен читаться целиком при любом кегле). */
+#towerRow{grid-template-columns:minmax(0,1fr);gap:calc(7px * var(--k))}
+#towerRow>*{min-width:0}
+.tcard{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto;
+align-items:center;column-gap:calc(10px * var(--k));
+padding:calc(9px * var(--k)) calc(12px * var(--k));text-align:left;min-width:0;
+min-height:calc(54px * var(--k))}
+.tcard canvas{grid-column:1;grid-row:1;width:calc(32px * var(--k));height:calc(32px * var(--k))}
+.tcard .tname{grid-column:2;grid-row:1;min-width:0;white-space:nowrap;overflow:visible}
+.tcard .tcost{grid-column:3;grid-row:1;white-space:nowrap;font-size:calc(15px * var(--k))}
+#actionRow{grid-template-columns:1.6fr 1fr 1fr;gap:calc(7px * var(--k))}
+#potionRow{grid-template-columns:repeat(3,1fr);gap:calc(7px * var(--k))}
+.pcard{height:calc(56px * var(--k));flex-direction:column}
+.act{height:calc(46px * var(--k));font-size:var(--fs-lg)}
+}
+/* v9.0: НИЗКИЙ ДЕСКТОП (например, iframe ВК 900x600) — компактнее хром панели */
+/* v9.0: невысокие десктоп-экраны (1366x768, 1280x800) — панель ужимается так,
+   чтобы всё (включая строку синхронизации) влезало без внутренней прокрутки */
+@media (min-width:640px) and (min-aspect-ratio:1/1) and (max-height:860px){
+#towerRow .tcard{min-height:calc(44px * var(--k));padding:calc(5px * var(--k)) calc(10px * var(--k));
+grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto;
+column-gap:calc(9px * var(--k));row-gap:0}
+#towerRow .tcard canvas{grid-row:1;grid-column:1;width:calc(26px * var(--k));height:calc(26px * var(--k))}
+#towerRow .tname{grid-column:2;grid-row:1;font-size:calc(17px * var(--k))}
+#towerRow .tcost{grid-column:3;grid-row:1;font-size:calc(14px * var(--k))}
+.act{height:calc(40px * var(--k))}
+.pcard{height:calc(46px * var(--k))}
+#potionRow{grid-template-columns:repeat(5,1fr)}
+#hud{padding:calc(6px * var(--k)) calc(8px * var(--k));gap:calc(5px * var(--k))}
+.hpbar{height:calc(13px * var(--k))}
+.syncFoot{padding:calc(4px * var(--k))}
+}
+@media (min-width:640px) and (max-height:620px){
+#hud{padding:calc(5px * var(--k));gap:calc(4px * var(--k))}
+.hgold{font-size:var(--fs-lg);min-width:calc(78px * var(--k))}
+.hpbar{height:calc(12px * var(--k))}
+#shop{padding:calc(5px * var(--k));gap:calc(4px * var(--k))}
+.act{height:calc(36px * var(--k));font-size:var(--fs-md)}
+.pcard{height:calc(42px * var(--k))}
+#towerRow{gap:calc(4px * var(--k))}
+#towerRow .tcard{min-height:calc(38px * var(--k));padding:calc(4px * var(--k)) calc(8px * var(--k))}
+#towerRow .tcard canvas{width:calc(24px * var(--k));height:calc(24px * var(--k))}
+#towerRow .tname{font-size:calc(15.5px * var(--k))}
+#towerRow .tcost{font-size:calc(13px * var(--k))}
+.syncFoot{padding:calc(3px * var(--k));font-size:calc(10px * var(--k))}
+}
+/* v9.0: УЗКИЙ ТЕЛЕФОН (<360px) — не даём тексту уехать за край */
+@media (max-width:345px){
+#potionRow{grid-template-columns:repeat(5,1fr);gap:calc(3px * var(--k))}
+#towerRow{gap:calc(3px * var(--k))}
+.pcard canvas{width:calc(14px * var(--k));height:calc(14px * var(--k))}
+.plab{font-size:calc(9.5px * var(--k))}
+.pstat{font-size:calc(8.5px * var(--k))}
+.tcard canvas{width:calc(21px * var(--k));height:calc(21px * var(--k))}
+.tname{font-size:calc(10px * var(--k))}
+.tcost{font-size:calc(10px * var(--k))}
+.ibtn{min-width:calc(30px * var(--k));font-size:calc(12px * var(--k))}
+.hgold{min-width:calc(58px * var(--k));font-size:calc(14px * var(--k))}
+#actionRow{grid-template-columns:1.5fr 1fr 1fr}
+.act{font-size:calc(11.5px * var(--k))}
+}
+@media (max-width:365px){
+#hud{gap:calc(4px * var(--k));padding:calc(5px * var(--k))}
+.hgold{min-width:calc(64px * var(--k))}
+.hbtns{width:100%;justify-content:center}
+.tname{font-size:calc(11px * var(--k))}
+.tcost{font-size:calc(11px * var(--k))}
+}
+/* v9.0: ОЧЕНЬ НИЗКИЙ ЭКРАН (ландшафт телефона) — панель обязана влезть целиком */
+@media (min-width:640px) and (max-height:470px){
+/* Ландшафт телефона (375-430px по высоте): панель обязана влезть целиком */
+#hud{padding:calc(3px * var(--k));gap:calc(3px * var(--k))}
+#hud .hbtns{gap:calc(3px * var(--k))}
+#streakPip{display:none}
+.hgold{font-size:calc(13px * var(--k));min-width:calc(58px * var(--k))}
+.hgold canvas{width:calc(15px * var(--k));height:calc(15px * var(--k))}
+#waveTxt{font-size:calc(11px * var(--k))}
+.hpbar{height:calc(9px * var(--k))}
+.ibtn{height:calc(26px * var(--k));min-width:calc(26px * var(--k));font-size:calc(11px * var(--k));border-width:1px}
+.ibtn svg{width:calc(15px * var(--k));height:calc(15px * var(--k))}
+.ibtn.ad{min-width:calc(48px * var(--k));font-size:calc(9.5px * var(--k))}
+#shop{padding:calc(3px * var(--k));gap:calc(3px * var(--k))}
+#towerRow{grid-template-columns:minmax(0,1fr);gap:calc(2px * var(--k))}
+#towerRow .tcard{grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto;
+column-gap:calc(7px * var(--k));row-gap:0;padding:calc(3px * var(--k)) calc(7px * var(--k));
+min-height:calc(31px * var(--k))}
+#towerRow .tcard canvas{grid-row:1;grid-column:1;width:calc(20px * var(--k));height:calc(20px * var(--k))}
+#towerRow .tname{grid-column:2;grid-row:1;font-size:calc(13px * var(--k));white-space:nowrap;line-height:1.1}
+#towerRow .tcost{grid-column:3;grid-row:1;font-size:calc(12px * var(--k));white-space:nowrap}
+.act{height:calc(29px * var(--k));font-size:calc(12px * var(--k));padding:0 calc(3px * var(--k));border-width:1px}
+#potionRow{grid-template-columns:repeat(5,1fr);gap:calc(3px * var(--k))}
+.pcard{height:calc(33px * var(--k));border-width:1px}
+.pcard canvas{width:calc(13px * var(--k));height:calc(13px * var(--k))}
+.plab{font-size:calc(9px * var(--k));letter-spacing:-.2px}
+.pstat{font-size:calc(7.5px * var(--k));letter-spacing:-.2px}
+.syncFoot{padding:calc(2px * var(--k));font-size:calc(9px * var(--k));border-width:1px}
+}
+
+/* v9.0: если игрок увеличил масштаб и панель не влезает — показываем тонкий
+   скроллбар (глобально скроллбары скрыты, иначе игрок не догадается, что панель
+   прокручивается). В мобильной колонке правило не действует. */
+#side{scrollbar-width:thin;scrollbar-color:#8a5424 transparent}
+#side::-webkit-scrollbar{width:8px;height:8px;display:block}
+#side::-webkit-scrollbar-thumb{background:#8a5424;border-radius:4px}
+#side::-webkit-scrollbar-track{background:transparent}
+@media (max-width:639px){#side::-webkit-scrollbar{width:0;display:none}}
 </style>
 </head>
 <body>
@@ -549,7 +761,7 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 <header id="hud">
 <div class="hgold"><canvas id="coinIco" width="20" height="20"></canvas><span id="goldTxt">0</span></div>
 <div class="hmid">
-<div id="streakPip" data-i18n-title="daily_title" title="Ежедневные награды">🔥1</div>
+<div id="streakPip" data-i18n-title="daily_title" title="Ежедневные награды">1</div>
 <div id="waveTxt">Волна 1</div>
 <div class="hpbar"><div id="hpFill"></div><span id="hpTxt"></span></div>
 </div>
@@ -560,6 +772,8 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 <!-- v6.5: btnAd показывает "+250" прямо на кнопке (п. 4.5.1). -->
 <button class="ibtn ad" id="btnAd" data-i18n-title="t_ad" title="Золото за рекламу"><canvas id="tvIco" width="20" height="20"></canvas><span>+250</span></button>
 <button class="ibtn" id="btnSound" data-i18n-title="t_sound" title="Звук"></button>
+<!-- v9.0 (п. 2.3.8): индикатор синхронизации прогресса между платформами -->
+<button class="ibtn sync off" id="btnSync" data-i18n-title="sync_title" title="Синхронизация"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 19a5 5 0 0 1-.7-9.95A6.5 6.5 0 0 1 18.6 10A4.5 4.5 0 0 1 18 19H7zm0-2h11a2.5 2.5 0 0 0 .2-4.99A4.5 4.5 0 0 0 9.7 11.2A4.5 4.5 0 0 0 7 12.99A3 3 0 0 0 7 17z"/></svg><span class="dot"></span></button>
 <button class="ibtn" id="btnPause" data-i18n-title="t_pause" title="Пауза"></button>
 </div>
 </header>
@@ -577,6 +791,8 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 <button class="pcard" id="btnQuests"></button>
 <button class="pcard" id="btnRecipes"></button>
 </div>
+<!-- v9.0 (п. 2.3.8): постоянный индикатор синхронизации прогресса -->
+<button class="syncFoot" id="syncFoot" type="button"><i></i><span id="syncFootTxt"></span></button>
 </footer>
 </div>
 </div>
@@ -591,7 +807,7 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 — Перетащи башню на <b>такую же</b> — уровень выше (виден призрак результата).<br>
 — <b>Разные</b> башни одного уровня дают <b>гибриды</b>.<br>
 — Тап по врагу — <b>метка цели</b>; сливай быстро — лови <b>комбо</b>.<br>
-— Рубильник <b>×1/×2/×3/×4</b> вверху; разведка волны — 🔍 на поле.
+— Рубильник <b>×1/×2/×3/×4</b> вверху; разведка волны — кнопка <b>РАЗВЕДКА</b> на поле.
 </div>
 <p id="dailyHint" class="sub"></p>
 <p id="startBest" class="sub"></p>
@@ -627,6 +843,8 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 <button class="bigbtn green" id="btnResume" data-i18n="btn_resume">ПРОДОЛЖИТЬ</button>
 <button class="bigbtn gray" id="btnDaily" data-i18n="btn_daily">ЕЖЕДНЕВНЫЕ НАГРАДЫ</button>
 <button class="bigbtn gray" id="btnTut" data-i18n="btn_tut">ОБУЧЕНИЕ</button>
+<!-- v9.0 (п. 3.3.3): игрок сам может увеличить кегль и элементы интерфейса -->
+<button class="bigbtn gray" id="btnUiScale" data-i18n="ui_scale">РАЗМЕР ИНТЕРФЕЙСА</button>
 <button class="bigbtn gray" id="btnRestart2" data-i18n="btn_restart2">НАЧАТЬ ЗАНОВО</button>
 <button class="bigbtn gray" id="btnMenu" data-i18n="btn_menu">В ГЛАВНОЕ МЕНЮ</button>
 </div></div>
@@ -666,6 +884,21 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 <div id="upBox"></div>
 <button class="bigbtn gray" id="btnClosePrestige" data-i18n="btn_close">ЗАКРЫТЬ</button>
 </div></div>
+<!-- v9.0 (п. 2.3.8 Правил ВК): панель синхронизации прогресса между платформами -->
+<div class="ov" id="syncOv"><div class="panel">
+<h2 data-i18n="sync_h">СИНХРОНИЗАЦИЯ ПРОГРЕССА</h2>
+<p class="sub" data-i18n="sync_sub">один прогресс на всех платформах</p>
+<div class="syncStatus off" id="syncStat"><i></i><span id="syncStatTxt"></span></div>
+<div class="syncBox"><b data-i18n="sync_platform_h">Хранилище</b><span id="syncPlat"></span></div>
+<div class="syncBox"><b data-i18n="sync_last_h">Последняя успешная синхронизация</b><span id="syncLast"></span></div>
+<button class="bigbtn green" id="btnSyncNow" data-i18n="sync_now">СИНХРОНИЗИРОВАТЬ СЕЙЧАС</button>
+<h2 style="font-size:var(--fs-md);margin-top:calc(14px * var(--k))" data-i18n="sync_code_h">КОД ПЕРЕНОСА ПРОГРЕССА</h2>
+<p class="sub" data-i18n="sync_code_sub">перенос прогресса на другое устройство</p>
+<textarea class="codeArea" id="syncCode" data-i18n-ph="sync_code_ph" placeholder="вставьте код"></textarea>
+<div class="syncBtns"><button class="bigbtn gray" id="btnSyncExport" data-i18n="sync_export">ПОЛУЧИТЬ КОД</button><button class="bigbtn gray" id="btnSyncImport" data-i18n="sync_import">ЗАГРУЗИТЬ</button></div>
+<button class="bigbtn gray" id="btnSyncReset" data-i18n="sync_reset">СБРОСИТЬ ПРОГРЕСС</button>
+<button class="bigbtn gray" id="btnCloseSync" data-i18n="sync_close">ЗАКРЫТЬ</button>
+</div></div>
 <div class="ov" id="choiceOv"><div class="panel">
 <h2 data-i18n="choice_title">ВОЛНА ОТБИТА</h2>
 <p class="sub" data-i18n="choice_sub">выбери награду</p>
@@ -692,7 +925,7 @@ background:radial-gradient(120% 90% at 50% 0%,#1c2413 0%,#131a0e 55%,#0c110a 100
 </div>
 <div id="adOverlay"><div class="spin"></div><span id="adText" data-i18n="ad_mock">Реклама (mock)...</span></div>
 <!-- v8.1 (п. 3.5.2): индикатор загрузки; скрывается в bootGame() -->
-<div id="bootSpin"><div class="spin"></div></div>
+<div id="bootSpin"><div class="spin"></div><div data-i18n="loading">Загрузка игры…</div></div>
 <!-- v8.2: однофайловая сборка — vk-bridge 2.15.12 ВСТРОЕН ниже, отдельный
 js/vk-bridge.min.js больше не нужен и не может потеряться на хостинге (причина
 «вечной загрузки» в ВК: нет файла -> нет VKWebAppInit -> ВК держит спиннер).
@@ -826,7 +1059,7 @@ const UPGRADES=[
 const I18N={
 ru:{
 title_html:'АЛХИМИЧЕСКИЙ<br>ЗАМОК', subtitle:'merge-оборона · соединяй и выживай',
-rules_html:'— Покупай башни в лавке: они стреляют сами.<br>— Перетащи башню на <b>такую же</b> — уровень выше (виден призрак результата).<br>— <b>Разные</b> башни одного уровня дают <b>гибриды</b>.<br>— Тап по врагу — <b>метка цели</b>; сливай быстро — лови <b>комбо</b>.<br>— Рубильник <b>×1/×2/×3/×4</b> вверху; разведка волны — 🔍 на поле.',
+rules_html:'— Покупай башни в лавке: они стреляют сами.<br>— Перетащи башню на <b>такую же</b> — уровень выше (виден призрак результата).<br>— <b>Разные</b> башни одного уровня дают <b>гибриды</b>.<br>— Тап по врагу — <b>метка цели</b>; сливай быстро — лови <b>комбо</b>.<br>— Рубильник <b>×1/×2/×3/×4</b> вверху; разведка волны — кнопка <b>РАЗВЕДКА</b> на поле.',
 btn_start:'В ОБОРОНУ', btn_daily:'ЕЖЕДНЕВНЫЕ НАГРАДЫ', btn_prestige:'ОТСТРОЙКА ЗАМКА',
 btn_revive:'ОТСТРОИТЬ ЗАМОК (реклама)', btn_restart:'СНОВА В БОЙ', btn_restart2:'НАЧАТЬ ЗАНОВО',
 btn_resume:'ПРОДОЛЖИТЬ', btn_tut:'ОБУЧЕНИЕ', btn_hide:'СПРЯТАТЬ', btn_close:'ЗАКРЫТЬ', btn_claim:'ЗАБРАТЬ НАГРАДУ ДНЯ',
@@ -846,7 +1079,7 @@ pot_freeze:'Заморозка', pot_meteor:'Метеор', pot_elixir:'Элик
 title_short:'Алхимический Замок', prep_sign:'Волна {n} через {x} с', boss_tag:' · БОСС',
 enemies_label:'Врагов: ', sell_for:'Продать за +{n} ✦', market_hint:'РЫНОК — перетащи башню сюда, вернут 60%',
 dmg_label:'УРОН ', dmg_sep:' · УРОН ', lvl_abbr:'УР. ', next_wave:'СЛЕД. ВОЛНА:', boss_word:'БОСС',
-combo_word:'КОМБО ×', tap_target:'Тапни цель', recon_open:'🔍 ОТКРЫТО', recon_ad:'🔍 реклама', recon_btn:'🔍 РАЗВЕДКА',
+combo_word:'КОМБО ×', tap_target:'Тапни цель', recon_open:'ОТКРЫТО', recon_ad:'РЕКЛАМА', recon_btn:'РАЗВЕДКА',
 shield_word:'ЩИТ', crit_word:'КРИТ!', mut_word:'МУТАЦИЯ!', lvl_up:'УР. {n}!', combo_x:'КОМБО ×{n}', power_up:'+15% мощи',
 wave_cleared:'Волна {n} отбита! +{x}✦', new_recipe:'Новый рецепт: {name}!', freeze_cast:'Заморозка!',
 meteor_aim:'Тапни по полю — упадёт метеор', brewed:'Сварено: {name}', need_gold:'Нужно {n}✦ на варку',
@@ -884,7 +1117,7 @@ tut_lvl:"Уровень 2, урон ×2! Сливай быстро подряд 
 tut_focus:"Тап по врагу ставит метку цели — все башни бьют его первым. Снимай лекарей и боссов!",
 tut_wave:"В бой! Кнопкой ×1/×2/×3/×4 вверху ускоряй скучные волны.",
 tut_castle:"Полоса — здоровье замка. Прорвавшиеся твари бьют по нему. Опустеет — конец.",
-tut_recon:"Кнопка 🔍 на поле — разведка: покажет, кого пришлёт следующая волна.",
+tut_recon:"Кнопка «РАЗВЕДКА» на поле покажет, кого пришлёт следующая волна.",
 tut_market:"Хлам на доске? Тащи на рынок внизу — вернут 60% золота.",
 tut_recipes:"РАЗНЫЕ башни одного уровня = гибриды. Рецепты — в Книге.",
 tut_potions:"Зелья выручают: заморозка, метеор, эликсир. Варятся за золото.",
@@ -907,10 +1140,26 @@ consent_html:'Игра сохраняет прогресс на устройст
 consent_btn:'ПРИНЯТЬ И ИГРАТЬ',
 btn_menu:'В ГЛАВНОЕ МЕНЮ',
 privacy_link:'Политика конфиденциальности',
+/* v9.0: синхронизация прогресса (п. 2.3.8) + масштаб интерфейса */
+sync_title:'Синхронизация прогресса',
+sync_st_ok:'прогресс в облаке',sync_st_err:'нет связи с облаком',sync_st_wait:'синхронизация…',sync_st_off:'только на этом устройстве',
+sync_h:'СИНХРОНИЗАЦИЯ ПРОГРЕССА',sync_sub:'один прогресс на всех платформах: vk.com, m.vk.com, Android, iOS',
+sync_now:'СИНХРОНИЗИРОВАТЬ СЕЙЧАС',sync_cloud_vk:'облако ВКонтакте',sync_cloud_local:'локальное хранилище устройства',
+sync_platform_h:'Хранилище',sync_last_h:'Последняя успешная синхронизация',sync_last_none:'ещё не было',
+sync_code_h:'КОД ПЕРЕНОСА ПРОГРЕССА',sync_code_sub:'если играете без ВКонтакте — перенесите прогресс на другое устройство вручную',
+sync_code_ph:'вставьте сюда код переноса и нажмите «Загрузить»',
+sync_export:'ПОЛУЧИТЬ КОД',sync_import:'ЗАГРУЗИТЬ',sync_close:'ЗАКРЫТЬ',
+sync_done:'Прогресс синхронизирован с другой платформой',
+sync_export_done:'Код скопирован — вставьте его на другом устройстве',
+sync_import_ok:'Прогресс перенесён!',sync_import_err:'Код не подошёл',
+sync_reset:'СБРОСИТЬ ПРОГРЕСС',sync_reset_confirm:'НАЖМИТЕ ЕЩЁ РАЗ ДЛЯ СБРОСА',
+sync_reset_ok:'Прогресс и облачная копия удалены',
+ui_scale:'РАЗМЕР ИНТЕРФЕЙСА',ui_scale_hint:'если текст мелкий или интерфейс не помещается',
+loading:'Загрузка игры…',
 },
 en:{
 title_html:'ALCHEMY<br>CASTLE', subtitle:'merge defense · combine and survive',
-rules_html:'- Buy towers in the shop: they shoot on their own.<br>- Drag a tower onto an <b>identical</b> one to level up (a ghost shows the result).<br>- <b>Different</b> towers of the same level make <b>hybrids</b>.<br>- Tap a foe to <b>mark a target</b>; merge fast to catch a <b>combo</b>.<br>- The <b>x1/x2/x3/x4</b> switch is up top; wave scouting is the 🔍 on the field.',
+rules_html:'- Buy towers in the shop: they shoot on their own.<br>- Drag a tower onto an <b>identical</b> one to level up (a ghost shows the result).<br>- <b>Different</b> towers of the same level make <b>hybrids</b>.<br>- Tap a foe to <b>mark a target</b>; merge fast to catch a <b>combo</b>.<br>- The <b>x1/x2/x3/x4</b> switch is up top; wave scouting is the <b>SCOUT</b> button on the field.',
 btn_start:'TO THE WALLS', btn_daily:'DAILY REWARDS', btn_prestige:'REBUILD CASTLE',
 btn_revive:'REBUILD CASTLE (ad)', btn_restart:'FIGHT AGAIN', btn_restart2:'START OVER',
 btn_resume:'RESUME', btn_tut:'TUTORIAL', btn_hide:'HIDE', btn_close:'CLOSE', btn_claim:'CLAIM DAILY REWARD',
@@ -991,6 +1240,21 @@ consent_html:'The game stores progress on your device and in the VK cloud, and s
 consent_btn:'ACCEPT & PLAY',
 btn_menu:'MAIN MENU',
 privacy_link:'Privacy Policy',
+sync_title:'Progress sync',
+sync_st_ok:'progress is in the cloud',sync_st_err:'cloud unreachable',sync_st_wait:'syncing…',sync_st_off:'this device only',
+sync_h:'PROGRESS SYNC',sync_sub:'one progress across all platforms: vk.com, m.vk.com, Android, iOS',
+sync_now:'SYNC NOW',sync_cloud_vk:'VK cloud storage',sync_cloud_local:'device local storage',
+sync_platform_h:'Storage',sync_last_h:'Last successful sync',sync_last_none:'never yet',
+sync_code_h:'PROGRESS TRANSFER CODE',sync_code_sub:'playing outside VK? move your progress to another device manually',
+sync_code_ph:'paste a transfer code here and press Load',
+sync_export:'GET CODE',sync_import:'LOAD',sync_close:'CLOSE',
+sync_done:'Progress synced with another platform',
+sync_export_done:'Code copied — paste it on the other device',
+sync_import_ok:'Progress transferred!',sync_import_err:'That code did not work',
+sync_reset:'RESET PROGRESS',sync_reset_confirm:'PRESS AGAIN TO RESET',
+sync_reset_ok:'Progress and cloud copy deleted',
+ui_scale:'UI SIZE',ui_scale_hint:'if the text is small or the UI does not fit',
+loading:'Loading the game…',
 }
 };
 let lang='ru';
@@ -1126,26 +1390,91 @@ try{console.info('[AlchemyCastle] platform=VK Mini Apps | bridge ver=',this.brid
 let p=null;
 try{ p=this.bridge.send('VKWebAppInit'); }catch(e){ p=null; }
 if(p&&typeof p.then==='function'){
-return Promise.resolve(p).then(()=>{this.ready=true;this._cloudOK=true;return this;}).catch(()=>{this.ready=true;return this;});
+return Promise.resolve(p).then(()=>{this.ready=true;this._cloudOK=true;return this;})
+.catch(()=>{this.ready=true;this._cloudOK=true;return this;});
 }
-this.ready=true;return Promise.resolve(this);
+this.ready=true;this._cloudOK=true;return Promise.resolve(this);
 }
 try{console.info('[AlchemyCastle] platform='+this.name+' (мок-режим)');}catch(e){}
 this.ready=true;
 return Promise.resolve(this);
 },
-/* --- облако сохранений ВКонтакте (VKWebAppStorage) --- */
-cloudGet(key){
-if(!this.vk||!this._cloudOK)return Promise.resolve(null);
-try{
-return this.bridge.send('VKWebAppStorageGet',{key:key})
-.then(r=>(r&&typeof r.value==='string')?r.value:null).catch(()=>null);
-}catch(e){return Promise.resolve(null);}
+/* --- ОБЛАКО ПРОГРЕССА: VKWebAppStorage (п. 2.3.8 Правил ВК) ---------------
+   v9.0: используется актуальная сигнатура методов ВК:
+     VKWebAppStorageGet {keys:[...]}  ->  {keys:[{key,value}]}
+     VKWebAppStorageSet {key,value}  ->  {result:true}   (значение <= 4096 байт)
+   Старый формат VKWebAppStorageGet {key} -> {value} поддержан как фолбэк —
+   так прогресс читается и на устаревших клиентах. Все вызовы обёрнуты в
+   таймаут: если клиент ВК не ответил за 6 с, синхронизация помечается
+   ошибкой, но игра продолжает работать на локальной копии. */
+_timeout(p,ms,label){
+const T=ms||6000;
+return new Promise((res,rej)=>{
+let done=false;
+const to=setTimeout(()=>{if(!done){done=true;rej(new Error('timeout:'+(label||'vk')));}},T);
+Promise.resolve(p).then(v=>{if(!done){done=true;clearTimeout(to);res(v);}},e=>{if(!done){done=true;clearTimeout(to);rej(e);}});
+});
 },
-cloudSet(key,value){
-if(!this.vk||!this._cloudOK)return;
-clearTimeout(this._saveT);
-this._saveT=setTimeout(()=>{try{this.bridge.send('VKWebAppStorageSet',{key:key,value:value}).catch(()=>{});}catch(e){}},1200);
+cloudGetKeys(keys){
+if(!this.vk||!this._cloudOK||!Array.isArray(keys)||!keys.length)return Promise.resolve({});
+const out={};
+const primary=(()=>{
+try{return this._timeout(this.bridge.send('VKWebAppStorageGet',{keys:keys}),6000,'get');}catch(e){return Promise.reject(e);}
+})();
+return primary.then(r=>{
+if(r&&Array.isArray(r.keys)){for(const it of r.keys){if(it&&it.key!=null)out[it.key]=String(it.value==null?'':it.value);}}
+return out;
+}).catch(()=>{
+/* старый клиент/старая сигнатура: по одному ключу */
+return keys.reduce((chain,k)=>chain.then(()=>{
+let pr;
+try{pr=this._timeout(this.bridge.send('VKWebAppStorageGet',{key:k}),5000,'get1');}catch(e){return;}
+return pr.then(r=>{
+if(r&&typeof r.value==='string')out[k]=r.value;
+else if(r&&Array.isArray(r.keys)){for(const it of r.keys){if(it&&it.key!=null)out[it.key]=String(it.value==null?'':it.value);}}
+}).catch(()=>{});
+}),Promise.resolve()).then(()=>out);
+});
+},
+cloudSetRaw(key,value){
+if(!this.vk||!this._cloudOK)return Promise.resolve(false);
+let pr;
+try{pr=this._timeout(this.bridge.send('VKWebAppStorageSet',{key:key,value:String(value==null?'':value)}),7000,'set');}catch(e){return Promise.resolve(false);}
+return pr.then(()=>true).catch(()=>false);
+},
+/* Совместимость с прежним API (одиночное значение без чанков). */
+cloudGet(key){return this.cloudGetKeys([key]).then(m=>m&&typeof m[key]==='string'?m[key]:null).catch(()=>null);},
+cloudSet(key,value){try{this.cloudSetRaw(key,value).catch(()=>{});}catch(e){}},
+/* Доступность рекламы на текущей платформе (п. 2.3.6/2.3.9 Правил ВК —
+   на платформе без рекламы рекламные точки не должны вводить в заблуждение). */
+adAvailable:null,
+/* Проверка доступности + показ: если рекламы нет — промис отклоняется,
+   вызывающий код показывает «реклама недоступна» и НЕ выдаёт награду. */
+showNativeAds(format){
+const doShow=()=>{
+try{return this._timeout(this.bridge.send('VKWebAppShowNativeAds',{ad_format:format||'rewarded'}),90000,'ad');}
+catch(e){return Promise.reject(e);}
+};
+const check=()=>{
+try{return this._timeout(this.bridge.send('VKWebAppCheckNativeAds',{ad_format:format||'rewarded'}),5000,'check');}
+catch(e){return Promise.resolve(null);}
+};
+return check().then(r=>{
+if(r&&r.result===false){this.adAvailable=false;try{markAdAvailability();}catch(e){}return Promise.reject(new Error('no ads'));}
+this.adAvailable=true;try{markAdAvailability();}catch(e){}
+return doShow();
+}).catch(e=>{
+if(String(e&&e.message||'').indexOf('no ads')>=0)throw e;
+/* сама проверка не удалась — пробуем показать напрямую */
+return doShow();
+});
+},
+checkAds(){
+if(!this.vk||!this.bridge)return Promise.resolve(null);
+let pr;
+try{pr=this._timeout(this.bridge.send('VKWebAppCheckNativeAds',{ad_format:'rewarded'}),6000,'checkAds');}catch(e){return Promise.resolve(null);}
+return pr.then(r=>{this.adAvailable=!!(r&&r.result);try{markAdAvailability();}catch(e){}return this.adAvailable;})
+.catch(()=>{this.adAvailable=null;return null;});
 },
 /* --- реклама: ВК — VKWebAppShowNativeAds, вне ВК — мок-имитация.
      v8.3: done() (награда) — ТОЛЬКО когда ролик досмотрен (VK вернул result:true,
@@ -1159,8 +1488,11 @@ const cleanup=()=>{ if(adPaused){ adPaused=false; paused=!!wasPaused; } };
 const done=()=>{ try{ freeze=Math.max(freeze,0.05); }catch(e){} cleanup(); try{ countAdView(); }catch(e){} fin(); };
 const noReward=(key,why)=>{ cleanup(); try{ banner(t(key),'#ff8a7a'); }catch(e){} try{console.warn('[AlchemyCastle] rewarded: БЕЗ награды ('+why+')');}catch(e){} };
 if(this.vk){
+/* v9.0: перед показом обязательно спрашиваем VKWebAppCheckNativeAds —
+   так рекомендует документация ВК, и мы не показываем кнопку/ролик, если
+   рекламы на платформе нет (п. 2.3.6/2.3.9 Правил). */
 let p=null;
-try{ p=this.bridge.send('VKWebAppShowNativeAds',{ad_format:'rewarded'}); }catch(e){ p=null; }
+try{ p=this.showNativeAds('rewarded'); }catch(e){ p=null; }
 if(p&&typeof p.then==='function'){
 p.then(r=>{ const earned=(r===true)||(!!r&&(r.result===true||r.result==='true'));
 if(earned){done();}else{noReward('ad_skip_no_reward',r?('ответ='+String(JSON.stringify(r)).slice(0,80)):'пустой ответ');} })
@@ -1174,7 +1506,7 @@ const wasPaused=paused; paused=true; adPaused=true;
 const done=()=>{ if(adPaused){ adPaused=false; paused=!!wasPaused; } fin(); };
 if(this.vk){
 let p=null;
-try{ p=this.bridge.send('VKWebAppShowNativeAds',{ad_format:'interstitial'}); }catch(e){ p=null; }
+try{ p=this.showNativeAds('interstitial'); }catch(e){ p=null; }
 if(p&&typeof p.then==='function'){
 p.then(()=>done()).catch(()=>done()); /* v8.3: ошибка показа — просто снимаем паузу */
 }else{mockAd(900,done);}
@@ -1240,22 +1572,232 @@ let meta=JSON.parse(JSON.stringify(DEFMETA));
 function deepMerge(t,s){for(const k in s){if(s[k]&&typeof s[k]==='object'&&!Array.isArray(s[k])){t[k]=t[k]||{};deepMerge(t[k],s[k]);}else t[k]=s[k];}}
 /* v7.0: гибридные сохранения — localStorage всегда + облако ВКонтакте
 (VKWebAppStorage, ключ alchemy_castle_v6), побеждает копия с более свежим ts. */
-const SAVE_KEY='alchemy_castle_v6';
-function save(){try{meta.ts=Date.now();}catch(e){}try{localStorage.setItem(SAVE_KEY,JSON.stringify(meta));}catch(e){}try{PLATFORM.cloudSet(SAVE_KEY,JSON.stringify(meta));}catch(e){}}
-function load(){try{const d=JSON.parse(localStorage.getItem(SAVE_KEY))||JSON.parse(localStorage.getItem('alchemy_castle_v5'))||JSON.parse(localStorage.getItem('alchemy_castle_v4'))||JSON.parse(localStorage.getItem('alchemy_castle_v3'));if(d)deepMerge(meta,d);}catch(e){}}
-function cloudMerge(){
-if(!PLATFORM.vk)return Promise.resolve();
-return PLATFORM.cloudGet(SAVE_KEY).then(s=>{
-if(!s)return;
+/* ============ 6.1 СИНХРОНИЗАЦИЯ ПРОГРЕССА МЕЖДУ ПЛАТФОРМАМИ ============
+   Требование п. 2.3.8 Правил размещения приложений на платформе VK Mini Apps:
+   «Приложение должно синхронизировать прогресс Пользователя в Приложении между
+   версиями, предназначенными для разных платформ».
+
+   Как это работает в v9.0:
+   1) ЛОКАЛЬНАЯ копия — localStorage (офлайн, мгновенно, переживает перезапуск).
+   2) ОБЛАЧНАЯ копия — VKWebAppStorage. Это серверное хранилище ВКонтакте,
+      привязанное к паре «пользователь + приложение», поэтому одна и та же
+      копия видна с десктопной версии сайта (vk.com), мобильной версии
+      (m.vk.com) и из мобильных приложений ВК на Android/iOS.
+   3) ЧАНКИ. VKWebAppStorageSet молча обрезает значения длиннее 4096 байт,
+      поэтому сейв режется на части по ≤3400 байт (ac9_c0, ac9_c1, ...), а
+      индекс ac9_meta хранит ts / количество частей / хеш содержимого.
+      Если хеш не сходится — запись считается битой и перезаписывается.
+   4) ПРАВИЛЬНЫЙ API. Чтение — VKWebAppStorageGet с массивом {keys:[...]}
+      (ответ {keys:[{key,value}]}), со старым форматом {key}->{value} как
+      фолбэком. Раньше использовался только устаревший формат, из-за чего
+      облако не читалось вовсе.
+   5) ЗАПИСЬ. Дебаунс 900 мс + НЕМЕДЛЕННЫЙ flush при скрытии приложения
+      (VKWebAppViewHide / visibilitychange / pagehide) — иначе последние
+      изменения не успевали уехать в облако и прогресс «рассинхронивался».
+   6) ЧТЕНИЕ. При старте (до отрисовки UI), при возврате в приложение
+      (VKWebAppShow / focus / visibilitychange) и раз в 60 с.
+   7) СЛИЯНИЕ (mergeProgress): базой берётся более свежий снимок (ts), поверх
+      него объединяются монотонные поля (рекорд, счётчики квестов, рецепты,
+      задания, согласие) — так прогресс никогда не «откатывается» при
+      переключении между устройствами.
+   8) КОД ПЕРЕНОСА — base64-строка сейва для платформ без облака ВК
+      (VK Play, обычный хостинг) и для ручного переноса между устройствами.
+   Ключи: ac9_meta, ac9_c0..ac9_cN. Старые ключи (alchemy_castle_v3..v6)
+   импортируются автоматически — прогресс существующих игроков не теряется. */
+const SAVE_KEY='alchemy_castle_v9';
+const LEGACY_LOCAL=['alchemy_castle_v6','alchemy_castle_v5','alchemy_castle_v4','alchemy_castle_v3'];
+const CLOUD='ac9_';
+const CHUNK_LIMIT=3400;
+const SAVE_CODE_PREFIX='AC9.';
+
+function utf8Len(str){let n=0;for(let i=0;i<str.length;i++){const c=str.charCodeAt(i);n+=c<0x80?1:c<0x800?2:3;}return n;}
+function hashStr(s){let h=5381;for(let i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))|0;}return (h>>>0).toString(36);}
+function chunkStr(s){
+const lim=CHUNK_LIMIT,out=[];let i=0;
+while(i<s.length){let bytes=0,j=i;while(j<s.length&&bytes<lim){const c=s.charCodeAt(j);bytes+=c<0x80?1:c<0x800?2:3;j++;}out.push(s.slice(i,j));i=j;}
+return out.length?out:[''];
+}
+function b64encode(s){try{return btoa(unescape(encodeURIComponent(s)));}catch(e){return '';}}
+function b64decode(s){try{return decodeURIComponent(escape(atob(String(s).replace(/\s+/g,''))));}catch(e){return '';}}
+/* Поля, которые только растут: при слиянии берём максимум, чтобы прогресс
+не откатывался при переключении устройств. */
+const MONO_QC=['merge','kill','sell','hybrid','maxLvl','bestWave','bossClean','ads','relics'];
+function mergeProgress(local,remote){
+const a=(local&&typeof local==='object')?local:{};
+const b=(remote&&typeof remote==='object')?remote:{};
+const newer=((b.ts||0)>=(a.ts||0))?b:a;
+const out=JSON.parse(JSON.stringify(newer||{}));
+out.best=Math.max(a.best||0,b.best||0);
+out.tutDone=Math.max(a.tutDone||0,b.tutDone||0);
+out.tutVersion=Math.max(a.tutVersion||0,b.tutVersion||0);
+out.consent=Math.max(a.consent||0,b.consent||0);
+out.adViews=Math.max(a.adViews||0,b.adViews||0);
+out.qc=out.qc||{};
+for(const k of MONO_QC)out.qc[k]=Math.max((a.qc&&a.qc[k])||0,(b.qc&&b.qc[k])||0);
+out.recipes=Object.assign({},a.recipes||{},b.recipes||{});
+out.qd=Object.assign({},a.qd||{},b.qd||{});
+/* bricks/up/relics/daily/lang/adDate/chestDate — расходуемые и «сессионные»
+   данные: берём из более свежего снимка (их нельзя складывать). */
+return out;
+}
+function saveLocal(){try{meta.ts=Date.now();localStorage.setItem(SAVE_KEY,JSON.stringify(meta));}catch(e){}}
+/* save() остаётся точкой входа для всего кода игры: локально — сразу,
+   в облако — с дебаунсом через SYNC.schedule(). */
+function save(){saveLocal();try{SYNC.schedule();}catch(e){}}
+function load(){
 try{
-const d=JSON.parse(s);
-if(d&&typeof d==='object'){
-if((d.ts||0)>=(meta.ts||0)){deepMerge(meta,d);try{console.info('[AlchemyCastle] облако ВК новее — прогресс применён');}catch(e){}}
-else{try{console.info('[AlchemyCastle] локальный прогресс новее облака');}catch(e){}}
-}
+let raw=null;
+for(const k of [SAVE_KEY].concat(LEGACY_LOCAL)){const v=localStorage.getItem(k);if(v){raw=v;break;}}
+if(raw){const d=JSON.parse(raw);if(d)deepMerge(meta,d);}
 }catch(e){}
-}).catch(()=>{});
 }
+/* Загрузка копии из облака ВК на старте (до отрисовки интерфейса). */
+function cloudMerge(){return SYNC.pull(true).catch(()=>false);}
+
+const SYNC={
+state:'off',        /* off | wait | ok | err */
+lastOk:0,lastErr:'',dirty:false,
+_t:null,_busy:false,_lastPull:0,_n:0,
+cloudPossible(){return !!(PLATFORM.vk&&PLATFORM._cloudOK&&PLATFORM.bridge);},
+setState(s,msg){
+this.state=s;if(msg!==undefined)this.lastErr=msg;
+const b=document.getElementById('btnSync');
+if(b){
+b.classList.remove('ok','err','off','spin');
+if(s==='ok')b.classList.add('ok');
+else if(s==='err')b.classList.add('err');
+else if(s==='wait'){b.classList.add('spin');b.classList.add('wait');}
+else b.classList.add('off');
+const map={ok:t('sync_st_ok'),err:t('sync_st_err'),wait:t('sync_st_wait'),off:t('sync_st_off')};
+b.title=t('sync_title')+': '+(map[s]||'');
+}
+const f=document.getElementById('syncFoot'),ft=document.getElementById('syncFootTxt');
+if(f){
+f.classList.remove('ok','err','wait');
+if(s==='ok')f.classList.add('ok');else if(s==='err')f.classList.add('err');else if(s==='wait')f.classList.add('wait');
+if(ft){
+const map2={ok:t('sync_st_ok'),err:t('sync_st_err'),wait:t('sync_st_wait'),off:t('sync_st_off')};
+ft.textContent=(SYNC.cloudPossible()?'☁ ':'⌂ ')+(map2[s]||'');
+}
+}
+try{if(typeof refreshSyncPanel==='function'&&document.getElementById('syncOv')&&document.getElementById('syncOv').classList.contains('show'))refreshSyncPanel();}catch(e){}
+},
+schedule(){
+if(!this.cloudPossible()){this.setState('off');return;}
+this.dirty=true;this.setState('wait');
+clearTimeout(this._t);this._t=setTimeout(()=>this.push(),900);
+},
+flush(){clearTimeout(this._t);if(this.dirty)return this.push();return Promise.resolve(false);},
+push(){
+if(!this.cloudPossible()){this.setState('off');return Promise.resolve(false);}
+if(this._busy)return this._p||Promise.resolve(false);
+this._busy=true;this.setState('wait');
+const json=JSON.stringify(meta);
+const chunks=chunkStr(json);
+const keys=chunks.map((_,i)=>CLOUD+'c'+i);
+const index=JSON.stringify({v:9,ts:meta.ts||Date.now(),n:chunks.length,h:hashStr(json),len:utf8Len(json)});
+let chain=Promise.resolve(true);
+for(let i=0;i<chunks.length;i++){(i=>{chain=chain.then(ok=>ok?PLATFORM.cloudSetRaw(keys[i],chunks[i]):false);})(i);}
+/* лишние части от прошлой (более длинной) записи обнуляем, чтобы при чтении
+   не склеить хвост старого сейва */
+const prev=this._n;
+chain=chain.then(ok=>{
+if(!ok)return false;
+const obs=[];for(let i=chunks.length;i<prev;i++)obs.push(PLATFORM.cloudSetRaw(CLOUD+'c'+i,''));
+return Promise.all(obs).then(()=>true);
+}).then(ok=>{
+if(!ok)throw new Error('set failed');
+return PLATFORM.cloudSetRaw(CLOUD+'meta',index);
+}).then(ok=>{
+if(!ok)throw new Error('meta set failed');
+this._n=chunks.length;this.dirty=false;this.lastOk=Date.now();
+this.setState('ok');
+try{if(meta.consent&&!this._migrated)this._migrated=true;}catch(e){}
+return true;
+}).catch(e=>{
+this.setState('err',String((e&&e.message)||e).slice(0,80));
+try{console.warn('[AlchemyCastle] sync push:',e);}catch(x){}
+return false;
+}).then(r=>{this._busy=false;this._p=null;return r;});
+this._p=chain;return chain;
+},
+pull(force){
+if(!this.cloudPossible()){this.setState('off');return Promise.resolve(false);}
+if(this._busy)return Promise.resolve(false);
+const now=Date.now();
+if(!force&&now-this._lastPull<20000)return Promise.resolve(false);
+this._lastPull=now;
+this._busy=true;this.setState('wait');
+return PLATFORM.cloudGetKeys([CLOUD+'meta']).then(map=>{
+const raw=map[CLOUD+'meta'];
+if(!raw){this._busy=false;return this._pullLegacy();}
+let info=null;try{info=JSON.parse(raw);}catch(e){}
+if(!info||!info.n){this._busy=false;return this._pullLegacy();}
+const keys=[];for(let i=0;i<info.n;i++)keys.push(CLOUD+'c'+i);
+return PLATFORM.cloudGetKeys(keys).then(m2=>{
+let json='';for(let i=0;i<info.n;i++)json+=m2[keys[i]]||'';
+if(hashStr(json)!==info.h)throw new Error('bad hash');
+const remote=JSON.parse(json);
+if(!remote||typeof remote!=='object')throw new Error('bad payload');
+const remoteWins=((remote.ts||0)>((meta.ts||0)));
+const merged=mergeProgress(meta,remote);
+meta=merged;relics=meta.relics||relics;
+try{applySyncedMeta();}catch(e){}
+if(remoteWins){saveLocal();try{this.schedule();}catch(e){}}
+this._n=info.n;this.dirty=false;this.lastOk=Date.now();
+this._busy=false;this.setState('ok');
+try{if(remoteWins&&window.__acBoot&&window.__acBoot.done&&!this._silent){banner(t('sync_done'),'#8fd8e8');this._silent=setTimeout(()=>{this._silent=null;},4000);}}catch(e){}
+return remoteWins;
+});
+}).catch(e=>{
+this._busy=false;this.setState('err',String((e&&e.message)||e).slice(0,80));
+try{console.warn('[AlchemyCastle] sync pull:',e);}catch(x){}
+return false;
+});
+},
+/* Миграция прогресса игроков со старой версии (ключ alchemy_castle_v6,
+   записанный без чанков). Читаем, сливаем, перезаписываем уже в новом виде. */
+_pullLegacy(){
+return PLATFORM.cloudGetKeys(LEGACY_LOCAL).then(map=>{
+let found=null;
+for(const k of LEGACY_LOCAL){const v=map[k];if(v){try{const d=JSON.parse(v);if(d&&typeof d==='object'){found=d;break;}}catch(e){}}}
+if(!found)return false;
+const merged=mergeProgress(meta,found);
+meta=merged;relics=meta.relics||relics;
+saveLocal();applySyncedMeta();
+this.lastOk=Date.now();this.setState('ok');
+try{console.info('[AlchemyCastle] прогресс старой версии перенесён из облака');}catch(e){}
+return this.push();
+}).catch(e=>{this.setState('err',String((e&&e.message)||e).slice(0,60));return false;});
+},
+/* Код переноса прогресса между устройствами/платформами без облака ВК. */
+exportCode(){try{return SAVE_CODE_PREFIX+b64encode(JSON.stringify(meta));}catch(e){return '';}},
+importCode(code){
+try{
+let s=String(code||'').trim();
+if(s.indexOf(SAVE_CODE_PREFIX)===0)s=s.slice(SAVE_CODE_PREFIX.length);
+const json=b64decode(s);
+if(!json)return false;
+const d=JSON.parse(json);
+if(!d||typeof d!=='object')return false;
+meta=mergeProgress(meta,d);relics=meta.relics||relics;
+saveLocal();applySyncedMeta();save();
+return true;
+}catch(e){return false;}
+}
+};
+/* Применение синхронизированного прогресса к уже построенному интерфейсу. */
+function applySyncedMeta(){
+try{relics=meta.relics||relics;}catch(e){}
+try{SFX.muted=!!meta.muted;setSoundIcon();}catch(e){}
+try{if(typeof relicRows!=='undefined'&&relicRows&&Object.keys(relicRows).length)refreshRelics();}catch(e){}
+try{if(document.getElementById('questsBox'))refreshQuests();}catch(e){}
+try{if(document.getElementById('dailyBox'))refreshDaily();}catch(e){}
+try{if(document.getElementById('upBox'))refreshPrestige();}catch(e){}
+try{updateStreakPip();}catch(e){}
+try{if(meta.uiScale)UI.setUser(meta.uiScale,true);}catch(e){}
+}
+
 let relics=meta.relics;
 let gold=0,totalGold=0,wave=1,kills=0,castleHP=100,castleMax=100;
 let state='menu',prepTimer=4,spawnQueue=[],spawnT=0;
@@ -1267,7 +1809,8 @@ let runPerks=[],potions={freeze:1,meteor:0,elixir:0},meteorMode=false,mousePos={
 let timeScale=1,focusTarget=null,comboCount=0,comboTimer=0,simAccum=0;
 let sessionStart=0;
 let wavePreview=[],reconShown=false,reconFreeUsed=false,targetMode='first',targetUnlocked=false;
-const reconBtn={x:LW-94,y:48,w:86,h:22},targetBtn={x:8,y:48,w:42,h:22};
+/* v9.0: кнопки на поле увеличены под палец и под масштабирование поля */
+const reconBtn={x:LW-118,y:42,w:110,h:30},targetBtn={x:8,y:42,w:54,h:30};
 const flies=[];for(let i=0;i<7;i++)flies.push({x:40+Math.random()*400,y:80+Math.random()*600,ph:Math.random()*7});
 const hasPerk=id=>runPerks.some(p=>p.id===id);
 const dmgMult=()=>(1+0.15*(relics.horn||0))*(hasPerk('dmg')?1.25:1);
@@ -1294,6 +1837,55 @@ const bgCv=document.createElement('canvas');let PX=1;
 включают padding, а CSS max-width/max-height:100% клампит canvas по content-box —
 раньше поле теряло пиксели и могло искажаться). Блокирует ресайз во время drag,
 чтобы canvas не дёргался при перетаскивании башни. */
+/* ============ 8.0 МАСШТАБ ИНТЕРФЕЙСА (v9.0, п. 3.2.1 + 3.3.3 Правил ВК) ====
+Единый коэффициент --u подбирается по размеру окна, поэтому один и тот же
+интерфейс остаётся читаемым и на телефоне 360×640, и на мониторе 1920×1080:
+телефон ~1.0 (кегль 13.5-15px, кнопки 42px), планшет ~1.1, десктоп 1.24-1.5
+(кегль 17-22px, кнопки 52-63px). Второй множитель --us даёт игроку ручную
+настройку «Размер интерфейса» (сохраняется в профиле и синхронизируется). */
+const UI={
+base:1,user:1,
+compute(){
+let w=window.innerWidth||document.documentElement.clientWidth||360;
+let h=window.innerHeight||document.documentElement.clientHeight||640;
+let u;
+if(w>=1600)u=1.50;else if(w>=1360)u=1.40;else if(w>=1180)u=1.32;
+else if(w>=1000)u=1.24;else if(w>=860)u=1.17;else if(w>=720)u=1.10;
+else if(w>=560)u=1.04;else u=Math.min(1.06,Math.max(0.92,w/392));
+/* на широких компоновках учитываем ещё и высоту окна: низкий iframe ВК
+(например 900x600) не должен превращаться в «переросший» интерфейс */
+if(w>=700)u*=Math.max(0.84,Math.min(1,h/820));
+u=Math.max(0.86,Math.min(1.6,u));
+this.base=Math.round(u*100)/100;
+this.apply();
+},
+apply(){
+try{
+const r=document.documentElement.style;
+r.setProperty('--u',String(this.base));
+r.setProperty('--us',String(this.user));
+}catch(e){}
+},
+setUser(v,silent){
+this.user=Math.max(0.85,Math.min(1.30,Math.round((Number(v)||1)*100)/100));
+this.apply();
+try{meta.uiScale=this.user;}catch(e){}
+if(!silent){try{save();}catch(e){}}
+try{refreshUiScaleBtn();}catch(e){}
+try{resize();}catch(e){}
+},
+cycle(){
+const steps=[1,1.12,1.25,0.9];
+let i=steps.indexOf(this.user);
+if(i<0)i=0;
+this.setUser(steps[(i+1)%steps.length]);
+}
+};
+function refreshUiScaleBtn(){
+const b=document.getElementById('btnUiScale');
+if(!b)return;
+b.textContent=t('ui_scale')+': '+Math.round(UI.user*100)+'%';
+}
 function resize(){
 if(drag) return;
 const st=document.getElementById('stage');
@@ -1328,7 +1920,7 @@ function td(key,amt){const d=meta.daily;if(!d||!d.qc)return;d.qc[key]=(d.qc[key]
 function checkDaily(){const d=meta.daily;if(!d)return;for(const q of d.quests){if(q.done)continue;if((d.qc[q.key]||0)>=q.goal){q.done=1;if(q.rwt==='brick'){meta.bricks+=q.rw;banner(tf('daily_brick',{name:L(q.name),n:q.rw}),'#8fd8e8');}else{gold+=q.rw;totalGold+=q.rw;banner(tf('daily_gold',{name:L(q.name),n:q.rw}),'#8fd8e8');}SFX.play('quest');save();}}}
 function pickDailyQuests(){const pool=DAILY_POOL.slice();const out=[];for(let i=0;i<3&&pool.length;i++){const j=Math.floor(Math.random()*pool.length);const q=pool.splice(j,1)[0];out.push({id:q.id,name:q.name,desc:q.desc,goal:q.goal,key:q.key,rw:q.rw,rwt:q.rwt,done:false});}return out;}
 function initDaily(){const today=new Date().toDateString();let d=meta.daily;if(!d){d=meta.daily={date:today,quests:[],qc:{},streak:0,lastLogin:'',claimedLogin:false};}if(d.lastLogin!==today){const yest=new Date(Date.now()-86400000).toDateString();d.streak=d.lastLogin?(d.lastLogin===yest?d.streak+1:1):1;d.lastLogin=today;d.claimedLogin=false;d.qc={};d.date=today;d.quests=pickDailyQuests();save();}updateStreakPip();}
-function updateStreakPip(){$('streakPip').textContent='🔥'+(meta.daily.streak||1);}
+function updateStreakPip(){$('streakPip').textContent=(lang==='ru'?'дней: ':'days: ')+(meta.daily.streak||1);}
 /* v8.0: учёт каждого успешного rewarded-показа (задание дня «3 рекламы» + аналитика). */
 function countAdView(){const today=new Date().toDateString();if(meta.adDate!==today){meta.adDate=today;meta.adViews=0;}meta.adViews=(meta.adViews||0)+1;meta.qc.ads=(meta.qc.ads||0)+1;td('ad');save();}
 /* v8.0: награда кнопки рекламы растёт с волной — актуальна весь забег. */
@@ -1451,7 +2043,7 @@ function drawPortal(g){const pulse=Math.sin(gameTime*5),r=12+pulse*2;g.save();g.
 function drawSellStrip(g){const active=!!drag,hot=active&&drag.y>=SELL_Y;g.textAlign='center';g.textBaseline='middle';if(active){g.fillStyle=hot?'#2c4030':'#241d38';g.fillRect(0,SELL_Y+17,LW,LH-SELL_Y-17);if(hot){g.fillStyle='#8fbf5a';for(let x=0;x<LW;x+=16)g.fillRect(x,SELL_Y+17,16,3);}}if(active){g.font='700 15px Podkova, Georgia';g.fillStyle=hot?'#c6ffcf':'#e7d3a1';g.fillText(tf('sell_for',{n:Math.floor(drag.tower.value*0.6)}),LW/2,SELL_Y+32);}else{g.font='13px Podkova, Georgia';g.fillStyle='#8d7a55';g.fillText(t('market_hint'),LW/2,SELL_Y+32);}}
 function drawSlotHL(g){if(!drag)return;const pulse=0.5+0.5*Math.sin(gameTime*8);const hov=slotAt(drag.x,drag.y);for(const s of slots){const x=GX+s.col*CELL+5,y=GY+s.row*CELL+5,w=CELL-10;if(s===drag.slot){g.fillStyle='#00000055';g.fillRect(x,y,w,w);continue;}const mr=s.tower?mergeResult(drag.tower,s.tower):null;if(mr){const col=mr.kind==='levelup'?'143,191,90':'143,216,232';g.fillStyle='rgba('+col+',0.16)';g.fillRect(x,y,w,w);g.strokeStyle='rgba('+col+','+(0.5+0.4*pulse)+')';g.lineWidth=3;g.strokeRect(x+1,y+1,w-2,w-2);}else if(s.tower&&canSacrifice(drag.tower,s.tower)){g.fillStyle='rgba(181,138,232,0.14)';g.fillRect(x,y,w,w);g.strokeStyle='rgba(181,138,232,'+(0.5+0.4*pulse)+')';g.lineWidth=3;g.strokeRect(x+1,y+1,w-2,w-2);}else if(!s.tower){g.strokeStyle='rgba(231,211,161,0.2)';g.lineWidth=2;g.strokeRect(x+1,y+1,w-2,w-2);}}if(hov&&hov.tower&&hov!==drag.slot)drawGhost(g,drag.tower,hov);}
 function drawDrag(g){const tt=drag.tower,def=TYPES[tt.type],rng=towerRange(tt);g.fillStyle=def.color+'14';g.beginPath();g.arc(drag.x,drag.y,rng,0,7);g.fill();g.strokeStyle=def.color+'66';g.lineWidth=2;g.setLineDash([6,5]);g.stroke();g.setLineDash([]);drawTower(g,tt,drag.x,drag.y,1.15);drawTowerStats(g,tt,drag.x,drag.y);}
-function drawFieldButtons(g){if(state!=='prep'&&state!=='wave')return;g.textAlign='center';g.textBaseline='middle';if(targetUnlocked){const b=targetBtn;g.fillStyle='#161022';g.fillRect(b.x-2,b.y-2,b.w+4,b.h+4);g.fillStyle='#372b52';g.fillRect(b.x,b.y,b.w,b.h);g.strokeStyle='#b58ae8';g.lineWidth=2;g.strokeRect(b.x,b.y,b.w,b.h);g.fillStyle='#e0ccff';g.font='700 13px Podkova, Georgia';g.fillText(TARGET_LABEL[targetMode],b.x+b.w/2,b.y+b.h/2+1);}if(state==='prep'){const b=reconBtn;g.fillStyle='#161022';g.fillRect(b.x-2,b.y-2,b.w+4,b.h+4);g.fillStyle=reconShown?'#3f6d2a':'#372b52';g.fillRect(b.x,b.y,b.w,b.h);g.strokeStyle=reconShown?'#8fbf5a':'#8a5424';g.lineWidth=2;g.strokeRect(b.x,b.y,b.w,b.h);g.fillStyle=reconShown?'#d9ffe4':'#e7d3a1';g.font='700 11px Podkova, Georgia';g.fillText(reconShown?t('recon_open'):(reconFreeUsed?t('recon_ad'):t('recon_btn')),b.x+b.w/2,b.y+b.h/2+1);}}
+function drawFieldButtons(g){if(state!=='prep'&&state!=='wave')return;g.textAlign='center';g.textBaseline='middle';if(targetUnlocked){const b=targetBtn;g.fillStyle='#161022';g.fillRect(b.x-2,b.y-2,b.w+4,b.h+4);g.fillStyle='#372b52';g.fillRect(b.x,b.y,b.w,b.h);g.strokeStyle='#b58ae8';g.lineWidth=2;g.strokeRect(b.x,b.y,b.w,b.h);g.fillStyle='#e0ccff';g.font='700 14px Podkova, Georgia';g.fillText(TARGET_LABEL[targetMode],b.x+b.w/2,b.y+b.h/2+1);}if(state==='prep'){const b=reconBtn;g.fillStyle='#161022';g.fillRect(b.x-2,b.y-2,b.w+4,b.h+4);g.fillStyle=reconShown?'#3f6d2a':'#372b52';g.fillRect(b.x,b.y,b.w,b.h);g.strokeStyle=reconShown?'#8fbf5a':'#8a5424';g.lineWidth=2;g.strokeRect(b.x,b.y,b.w,b.h);g.fillStyle=reconShown?'#d9ffe4':'#e7d3a1';g.font='700 14px Podkova, Georgia';g.fillText(reconShown?t('recon_open'):(reconFreeUsed?t('recon_ad'):t('recon_btn')),b.x+b.w/2,b.y+b.h/2+1);}}
 function drawReconPanel(g){if(state!=='prep'||!reconShown||!wavePreview.length)return;const cnt={};let boss=false;for(const s of wavePreview){if(s.t==='boss')boss=true;else cnt[s.t]=(cnt[s.t]||0)+1;}const keys=Object.keys(cnt);const items=keys.length+(boss?1:0);const iw=42,gap=6,w=items*iw+(items-1)*gap+24,h=46,x=240-w/2,y=78;g.fillStyle='#161022e6';g.fillRect(x-3,y-3,w+6,h+6);g.fillStyle='#241d38';g.fillRect(x,y,w,h);g.strokeStyle='#b58ae8';g.lineWidth=2;g.strokeRect(x,y,w,h);g.fillStyle='#c9b8ff';g.font='700 10px Podkova, Georgia';g.textAlign='left';g.fillText(t('next_wave'),x+8,y+12);let cx=x+12;const cy=y+h/2+6;for(const k of keys){const pair=EMAP[k],key=pair[0];g.drawImage(SPR[key],cx,cy-12,24,24*(MAPS[key].length/MAPS[key][0].length));g.fillStyle='#e7d3a1';g.font='700 11px Podkova, Georgia';g.textAlign='center';g.fillText('×'+cnt[k],cx+12,cy+18);cx+=iw+gap;}if(boss){g.drawImage(SPR.boss,cx,cy-12,24,24*(MAPS.boss.length/MAPS.boss[0].length));g.fillStyle='#ff8a7a';g.font='700 10px Podkova, Georgia';g.textAlign='center';g.fillText(t('boss_word'),cx+12,cy+18);}g.textAlign='center';}
 function drawTopSign(g){let txt=t('title_short');if(state==='prep'){txt=tf('prep_sign',{n:wave,x:Math.max(1,Math.ceil(prepTimer))})+(wave%5===0?t('boss_tag'):'');}else if(state==='wave'){txt=t('enemies_label')+(ePool.act.length+spawnQueue.length);}const w=220,h=30,x=240-w/2,y=14;g.fillStyle='#161022';g.fillRect(x-2,y-2,w+4,h+4);g.fillStyle='#e7d3a1';g.fillRect(x,y,w,h);g.fillStyle='#c2a265';g.fillRect(x,y+h-4,w,4);g.fillStyle='#8a5424';g.fillRect(x+7,y+4,4,4);g.fillRect(x+w-11,y+4,4,4);g.textAlign='center';g.textBaseline='middle';g.font='700 14px Podkova, Georgia';g.fillStyle='#4a3418';g.fillText(txt,x+w/2,y+h/2+1);}
 function drawPerkChips(g){if(!runPerks.length)return;let cx=10;g.font='11px Podkova, Georgia';g.textBaseline='middle';g.textAlign='left';for(const p of runPerks.slice(0,3)){const w=g.measureText(L(p.name)).width+12;g.fillStyle='#161022cc';g.fillRect(cx,48,w,16);g.fillStyle='#f2c14e';g.fillText(L(p.name),cx+6,57);cx+=w+4;}g.textAlign='center';}
@@ -1537,6 +2129,7 @@ document.documentElement.lang=lang;
 document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=t(el.getAttribute('data-i18n'));});
 document.querySelectorAll('[data-i18n-html]').forEach(el=>{el.innerHTML=t(el.getAttribute('data-i18n-html'));});
 document.querySelectorAll('[data-i18n-title]').forEach(el=>{el.title=t(el.getAttribute('data-i18n-title'));});
+document.querySelectorAll('[data-i18n-ph]').forEach(el=>{el.setAttribute('placeholder',t(el.getAttribute('data-i18n-ph')));});
 for(const k in cardEls){if(cardEls[k].nameEl)cardEls[k].nameEl.textContent=L(cardEls[k].nameObj);}
 for(const k in potRefs){if(potRefs[k].labEl)potRefs[k].labEl.textContent=L(potRefs[k].labObj);}
 if(potRefs.quests&&potRefs.quests.labEl)potRefs.quests.labEl.textContent=t('tab_quests');
@@ -1549,6 +2142,9 @@ $('btnLang').textContent=lang.toUpperCase();
 const adSpan=document.querySelector('#btnAd span'); if(adSpan) adSpan.textContent='+'+adBonusNow(); /* v8.0: динамическая сумма */
 setSoundIcon();
 uiCache.waveTxt=undefined;
+try{refreshUiScaleBtn();}catch(e){}
+try{SYNC.setState(SYNC.state);}catch(e){}
+try{refreshSyncPanel();}catch(e){}
 save();
 }
 /* v6.5: GameplayAPI.start() при старте игры (п. 8 модерации). */
@@ -1564,6 +2160,43 @@ $('btnWave').addEventListener('click',()=>{SFX.play('click');if(state==='prep')s
 $('btnMerge').addEventListener('click',()=>{SFX.play('click');mergeAll();});
 $('btnAuto').addEventListener('click',()=>{SFX.play('click');autoBuy=!autoBuy;});
 $('btnRelics').addEventListener('click',()=>{SFX.play('click');refreshRelics();openPanel($('relicsOv'));});
+/* ===== v9.0 (п. 2.3.8): панель синхронизации прогресса ===== */
+$('btnSync').addEventListener('click',()=>{SFX.play('click');openSync();});
+$('syncFoot').addEventListener('click',()=>{SFX.play('click');openSync();});
+$('btnCloseSync').addEventListener('click',()=>{SFX.play('click');closePanel($('syncOv'));});
+$('btnSyncNow').addEventListener('click',()=>{
+SFX.play('click');
+const b=$('btnSyncNow'),old=b.textContent;
+b.disabled=true;
+SYNC.dirty=true;
+Promise.resolve(SYNC.push()).then(()=>SYNC.pull(true)).then(()=>{b.disabled=false;b.textContent=old;refreshSyncPanel();});
+});
+$('btnSyncExport').addEventListener('click',()=>{
+SFX.play('click');
+const code=SYNC.exportCode();
+const ta=$('syncCode');
+ta.value=code;
+ta.focus();try{ta.select();}catch(e){}
+try{navigator.clipboard&&navigator.clipboard.writeText(code).catch(()=>{});}catch(e){}
+try{document.execCommand('copy');}catch(e){}
+banner(t('sync_export_done'),'#8fd8e8');
+});
+$('btnSyncImport').addEventListener('click',()=>{
+SFX.play('click');
+const ok=SYNC.importCode($('syncCode').value);
+banner(ok?t('sync_import_ok'):t('sync_import_err'),ok?'#8fbf5a':'#ff8a7a');
+if(ok){try{refreshRelics();refreshQuests();refreshDaily();refreshPrestige();updateStreakPip();}catch(e){}refreshSyncPanel();}
+});
+let _resetArmed=0;
+$('btnSyncReset').addEventListener('click',()=>{
+SFX.play('click');
+const b=$('btnSyncReset');
+const now=Date.now();
+if(now-_resetArmed>3500){_resetArmed=now;b.textContent=t('sync_reset_confirm');setTimeout(()=>{b.textContent=t('sync_reset');},3500);return;}
+_resetArmed=0;resetProgress();
+});
+$('btnUiScale').addEventListener('click',()=>{SFX.play('click');UI.cycle();});
+
 $('btnCloseRelics').addEventListener('click',()=>{SFX.play('click');closePanel($('relicsOv'));});
 $('btnCloseRecipes').addEventListener('click',()=>{SFX.play('click');closePanel($('recipesOv'));});
 $('btnCloseQuests').addEventListener('click',()=>{SFX.play('click');closePanel($('questsOv'));});
@@ -1661,7 +2294,7 @@ document.addEventListener('dblclick',e=>{e.preventDefault();},true);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&(state==='prep'||state==='wave')&&!paused)setPaused(true);});
 /* v6.5: orientationchange с задержкой (п. 1.6.1.3 модерации — без искажения при повороте). */
 let _resizeTimer=null;
-function scheduleResize(){ clearTimeout(_resizeTimer); _resizeTimer=setTimeout(()=>{ drag=null; resize(); },120); }
+function scheduleResize(){ clearTimeout(_resizeTimer); _resizeTimer=setTimeout(()=>{ drag=null; try{UI.compute();}catch(e){} resize(); },120); }
 window.addEventListener('orientationchange',scheduleResize);
 window.addEventListener('resize',scheduleResize);
 /* v6.6: matchMedia — надёжный детект смены ориентации в современных браузерах;
@@ -1673,6 +2306,58 @@ const onMq=()=>scheduleResize();
 if(mq&&typeof mq.addEventListener==='function')mq.addEventListener('change',onMq);
 else if(mq&&typeof mq.addListener==='function')mq.addListener(onMq);
 }catch(e){}
+/* ============ 23.5 UI СИНХРОНИЗАЦИИ + ЖИЗНЕННЫЙ ЦИКЛ (v9.0) ============
+Панель синхронизации показывает: доступно ли облако, когда последний раз
+прогресс уезжал в облако, код переноса прогресса и сброс данных (в т.ч.
+облачной копии — требование к удалению данных игрока). */
+function refreshSyncPanel(){
+const st=document.getElementById('syncStat'),txt=document.getElementById('syncStatTxt');
+const plat=document.getElementById('syncPlat'),last=document.getElementById('syncLast');
+if(!st)return;
+const cls={ok:'ok',err:'err',wait:'wait'}[SYNC.state]||'';
+st.className='syncStatus '+cls;
+txt.textContent=SYNC.state==='ok'?t('sync_st_ok'):SYNC.state==='err'?t('sync_st_err'):SYNC.state==='wait'?t('sync_st_wait'):t('sync_st_off');
+plat.textContent=SYNC.cloudPossible()?t('sync_cloud_vk')+' · VKWebAppStorage':t('sync_cloud_local');
+last.textContent=SYNC.lastOk?new Date(SYNC.lastOk).toLocaleString(lang==='ru'?'ru-RU':'en-GB'):t('sync_last_none');
+}
+function openSync(){refreshSyncPanel();openPanel(document.getElementById('syncOv'));}
+/* п. 2.3.6/2.3.9 Правил ВК: если реклама на платформе недоступна — рекламные
+точки визуально помечаются, чтобы не вводить игрока в заблуждение. */
+function markAdAvailability(){
+const na=(typeof PLATFORM!=='undefined')&&PLATFORM.adAvailable===false;
+const list=['btnAd','adX2','adBoost','btnChest','btnRevive','ch4'];
+for(const id of list){const el=document.getElementById(id);if(el)el.classList.toggle('adna',na);}
+}
+/* Удаление прогресса: локальная копия + облачная копия ВК (право игрока на
+удаление данных, см. privacy.html). */
+function resetProgress(){
+try{localStorage.removeItem(SAVE_KEY);for(const k of LEGACY_LOCAL)localStorage.removeItem(k);}catch(e){}
+try{meta=JSON.parse(JSON.stringify(DEFMETA));relics=meta.relics;localStorage.setItem(SAVE_KEY,JSON.stringify(meta));}catch(e){}
+try{
+PLATFORM.cloudSetRaw(CLOUD+'meta','').catch(()=>{});
+for(let i=0;i<10;i++)PLATFORM.cloudSetRaw(CLOUD+'c'+i,'').catch(()=>{});
+}catch(e){}
+try{banner(t('sync_reset_ok'),'#8fd8e8');}catch(e){}
+setTimeout(()=>{try{location.reload();}catch(e){}},600);
+}
+/* Жизненный цикл синхронизации: запись — при уходе из приложения, чтение —
+при возврате. Без этого последние изменения терялись (главная причина
+замечания модерации по п. 2.3.8). */
+function setupSyncLifecycle(){
+document.addEventListener('visibilitychange',()=>{
+if(document.hidden){try{SYNC.flush();}catch(e){}}
+else{try{SYNC.pull();}catch(e){}}
+});
+window.addEventListener('pagehide',()=>{try{SYNC.flush();}catch(e){}});
+window.addEventListener('beforeunload',()=>{try{SYNC.flush();}catch(e){}});
+window.addEventListener('focus',()=>{try{SYNC.pull();}catch(e){}});
+setInterval(()=>{
+try{
+if(!SYNC.cloudPossible())return;
+if(SYNC.dirty)SYNC.push();else SYNC.pull();
+}catch(e){}
+},60000);
+}
 /* ============ 24. BOOT + ПЛАТФОРМА (v7.0) ============
 Порядок запуска:
 1) PLATFORM.init() -> ждём (vk-bridge VKWebAppInit в ВК / мгновенный мок вне ВК);
@@ -1712,6 +2397,8 @@ try{const bs=$('bootSpin');if(bs)bs.classList.add('off');}catch(e){}
 /* v7.0: load() перенесён в initAndBoot (ДО cloudMerge), чтобы облако ВК
 корректно перезаписало локальные данные до первой отрисовки UI. */
 relics=meta.relics;SFX.muted=!!meta.muted;
+/* v9.0: масштаб интерфейса — пользовательская настройка (из профиля) + автоподбор */
+try{UI.user=Math.max(0.85,Math.min(1.30,Number(meta.uiScale)||1));UI.compute();}catch(e){}
 lang = detectLang();
 buildShop();buildPotions();buildRelics();initDaily();newRun();resize();
 if('ResizeObserver'in window) new ResizeObserver(scheduleResize).observe($('stage'));
@@ -1741,9 +2428,13 @@ PLATFORM.bridge.subscribe(e=>{
 const d=(e&&e.detail)?e.detail:{};
 if(d.type==='VKWebAppViewHide'){
 try{SFX.setHidden(true);}catch(x){}
+/* v9.0 (п. 2.3.8): при скрытии мини-приложения сразу дописываем прогресс в облако */
+try{SYNC.flush();}catch(x){}
 try{if((state==='wave'||state==='prep')&&!paused)setPaused(true);}catch(x){}
 }else if(d.type==='VKWebAppShow'){
 try{SFX.setHidden(false);}catch(x){}
+/* v9.0: при возврате подтягиваем прогресс, сделанный на другой платформе */
+try{SYNC.pull();}catch(x){}
 }
 });
 }catch(e){}
@@ -1758,6 +2449,7 @@ Promise.race([PLATFORM.init(),timeout.then(()=>PLATFORM)])
 .then(()=>{load();return cloudMerge();})
 .then(()=>{
 setupViewHide();
+try{setupSyncLifecycle();}catch(e){}
 bootGame();
 try{window.__acBoot.done=true;var _be=document.getElementById('bootErr');if(_be)_be.remove();}catch(e){}
 /* v7.0: кнопки «ТАБЛИЦА РЕКОРДОВ» видны только там, где есть лидерборд (ВК). */
@@ -1775,6 +2467,14 @@ if(bi)bi.style.display='block';
 if(bf)bf.style.display='block';
 }
 try{console.info('[AlchemyCastle] platform ready:',PLATFORM.name,'| vk bridge:',PLATFORM.vk);}catch(e){}
+/* v9.0: рекламные точки проверяются на доступность (п. 2.3.6/2.3.9 Правил ВК) */
+try{if(PLATFORM.vk)PLATFORM.checkAds();}catch(e){}
+/* v9.0 (п. 2.3.8): если VKWebAppInit ответил позже таймаута старта — прогресс
+из облака всё равно подтянется, а не потеряется до следующего запуска. */
+try{
+SYNC.setState(SYNC.cloudPossible()?(SYNC.state==='ok'?'ok':'wait'):'off');
+setTimeout(()=>{try{SYNC.pull(true);}catch(e){}},4000);
+}catch(e){}
 })
 .catch(()=>{try{bootGame();}catch(e){}try{window.__acBoot.done=true;}catch(e){}});
 }
@@ -1870,5 +2570,5 @@ scattered, warm firelight, game cover art"
 ВЫКЛАДКА: index.html в КОРНЕ архива alchemy-castle-merge-td.zip
 (архивируй СОДЕРЖИМОЕ папки, не саму папку). Промо-материалы загружаются в Панели управления приложения ВКонтакте.
 </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5875f44c8b9e49a',t:'MTc5NDMzNzk4Mg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5875f44c8b9e49a',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
